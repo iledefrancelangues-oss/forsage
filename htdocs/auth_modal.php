@@ -1,6 +1,22 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) session_start();
 if (!isset($lang)) $lang = $_SESSION['lang'] ?? 'ru';
+
+/* Telegram Login Widget config — read from tg_config.php (gitignored) so the
+   real bot creds never end up in the public repo. Falls back to env vars. */
+$tg_bot_token    = '';
+$tg_bot_username = '';
+$tg_cfg = __DIR__ . '/tg_config.php';
+if (is_file($tg_cfg)) {
+    require $tg_cfg;
+    if (isset($bot_token))    { $tg_bot_token    = $bot_token; }
+    if (isset($bot_username)) { $tg_bot_username = $bot_username; }
+}
+if (!$tg_bot_token)    { $tg_bot_token    = getenv('TELEGRAM_BOT_TOKEN')    ?: ''; }
+if (!$tg_bot_username) { $tg_bot_username = getenv('TELEGRAM_BOT_USERNAME') ?: ''; }
+$tg_configured = $tg_bot_token && $tg_bot_username
+    && $tg_bot_token    !== 'YOUR_BOT_TOKEN'
+    && $tg_bot_username !== 'YOUR_BOT_USERNAME';
 ?>
 
 <style>
@@ -445,12 +461,23 @@ if (!isset($lang)) $lang = $_SESSION['lang'] ?? 'ru';
                     <span class="auth-divider-text"><?= $lang === 'en' ? 'or' : 'или' ?></span>
                     <div class="auth-divider-line"></div>
                 </div>
-                <button class="auth-btn auth-btn-telegram" onclick="authViaTelegram()" type="button">
+                <?php if ($tg_configured): ?>
+                <div class="auth-tg-widget" style="display:flex;justify-content:center;min-height:46px;">
+                    <script async src="https://telegram.org/js/telegram-widget.js?22"
+                            data-telegram-login="<?= htmlspecialchars($tg_bot_username) ?>"
+                            data-size="large"
+                            data-radius="10"
+                            data-auth-url="<?= htmlspecialchars((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https://' : 'http://') . $_SERVER['HTTP_HOST']) ?>/telegram_auth.php"
+                            data-request-access="write"></script>
+                </div>
+                <?php else: ?>
+                <button class="auth-btn auth-btn-telegram" onclick="alert('Telegram \u0432\u0445\u043e\u0434 \u043f\u043e\u043a\u0430 \u043d\u0435 \u043d\u0430\u0441\u0442\u0440\u043e\u0435\u043d')" type="button">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
                     </svg>
                     <?= $lang === 'en' ? 'Sign in with Telegram' : 'Войти через Telegram' ?>
                 </button>
+                <?php endif; ?>
             </div>
 
             <!-- РЕГИСТРАЦИЯ -->
@@ -784,7 +811,8 @@ function authOpenReceipt() {
     if (c.express) statusLabel += isEN2 ? ' (Express)' : ' (экспресс)';
     var url = 'upgrade_receipt.php?status=' + encodeURIComponent(statusLabel)
             + '&sum=' + c.total + '&express=' + (c.express ? '1' : '0') + '&close=1';
-    var w = window.open(url, '_blank', 'noopener,width=900,height=820');
+    /* Open in a regular new tab (no popup window — no width/height/features). */
+    var w = window.open(url, '_blank', 'noopener,noreferrer');
     if (!w) {
         window.location.href = url;
     }

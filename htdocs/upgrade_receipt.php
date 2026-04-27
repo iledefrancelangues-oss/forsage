@@ -260,11 +260,6 @@ $qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=' . urle
       Назначение платежа: <?= htmlspecialchars($purpose, ENT_QUOTES, 'UTF-8') ?>
     </div>
 
-    <div class="footer">
-      <div>Подпись плательщика: ______________/_______________</div>
-      <div>М.П. (при наличии)</div>
-    </div>
-
     <div class="btn-row">
       <button class="btn-print" onclick="window.print();" type="button">🖨️ Печать квитанции</button>
       <button class="btn-close" onclick="receiptClose();" type="button">✕ Закрыть</button>
