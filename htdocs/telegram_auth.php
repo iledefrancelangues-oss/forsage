@@ -78,6 +78,25 @@ if ($is_configured && isset($_GET['id'], $_GET['hash'], $_GET['auth_date'])) {
         die('Ошибка проверки данных Telegram');
     }
 
+    /* Auto-migrate users table — add columns the Telegram flow expects if
+       they don't exist yet. Each ALTER is wrapped separately so a single
+       'duplicate column' error doesn't abort the whole migration on plain
+       MySQL (which lacks IF NOT EXISTS for ADD COLUMN). */
+    $migrations = [
+        "ALTER TABLE users ADD COLUMN telegram_id BIGINT NULL",
+        "ALTER TABLE users ADD COLUMN telegram_username VARCHAR(64) NULL",
+        "ALTER TABLE users ADD COLUMN full_name VARCHAR(255) NULL",
+        "ALTER TABLE users ADD COLUMN entity_type VARCHAR(32) NULL DEFAULT 'individual'",
+        "ALTER TABLE users ADD COLUMN user_status VARCHAR(32) NULL DEFAULT 'base'",
+        "ALTER TABLE users ADD COLUMN balance DECIMAL(15,2) NOT NULL DEFAULT 0",
+        "ALTER TABLE users ADD COLUMN last_login DATETIME NULL",
+        "ALTER TABLE users ADD COLUMN created_at DATETIME NULL",
+        "CREATE UNIQUE INDEX idx_users_telegram_id ON users (telegram_id)",
+    ];
+    foreach ($migrations as $sql) {
+        try { $pdo->exec($sql); } catch (Exception $e) { /* column already exists — ignore */ }
+    }
+
     try {
         $telegram_id       = (int)$auth_data['id'];
         $telegram_username = $auth_data['username'] ?: ('user_' . $telegram_id);
