@@ -993,4 +993,15 @@ document.addEventListener('keydown', function(e) {
         closeAuth();
     }
 });
+
+/* Auto-open modal when redirected here from login.php / register.php */
+(function(){
+    try {
+        var p = new URLSearchParams(location.search);
+        var m = p.get('modal') || p.get('auth');
+        if (m === 'login' || m === 'register') {
+            openAuth(m);
+        }
+    } catch (e) {}
+})();
 </script>
