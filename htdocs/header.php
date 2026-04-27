@@ -10,6 +10,18 @@ if (isset($_GET['lang'])) {
 }
 $lang = $_SESSION['lang'];
 
+if (!function_exists('t')) {
+    /**
+     * Translation helper. Falls back to the Russian source if no English
+     * variant is provided, so calls like `t('Профиль')` are safe in code that
+     * hasn't been fully translated yet.
+     */
+    function t(string $ru, string $en = ''): string {
+        global $lang;
+        return ($lang === 'en' && $en !== '') ? $en : $ru;
+    }
+}
+
 $t = [
     'ru' => [
         'login'    => 'ВХОД',
