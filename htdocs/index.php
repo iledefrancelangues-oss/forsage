@@ -611,8 +611,31 @@ function initThreeScene(THREE) {
     planetTex.wrapS = THREE.RepeatWrapping;
 
     const planetGroup = new THREE.Group();
-    planetGroup.position.set(4.6, -2.2, -3.5);
-    planetGroup.scale.setScalar(0.85);
+    /* Anchored to the upper-right corner, well to the right of the hero copy.
+       Kept full-size and dramatic on desktop; on narrow viewports the planet
+       is pushed further off-screen and slightly scaled down so it never
+       intersects the title. Recomputed on resize. */
+    function getPlanetLayout() {
+        const w = window.innerWidth;
+        if (w <= 480) {
+            /* Phone: planet sits up & off to the right, mostly clipped. */
+            return { x: 5.0, y: 4.6, z: -4.5, s: 0.55 };
+        }
+        if (w <= 900) {
+            /* Tablet: medium planet just grazing the upper-right corner. */
+            return { x: 6.5, y: 3.6, z: -4.0, s: 0.7 };
+        }
+        if (w <= 1280) {
+            /* Small desktop / 13" laptop: tuck planet farther right so the
+               title never crosses the rings. */
+            return { x: 9.0, y: 3.0, z: -3.8, s: 0.85 };
+        }
+        /* Large desktop: full-size planet, dramatic upper-right anchor. */
+        return { x: 8.5, y: 2.6, z: -3.5, s: 1.0 };
+    }
+    let planetLayout = getPlanetLayout();
+    planetGroup.position.set(planetLayout.x, planetLayout.y, planetLayout.z);
+    planetGroup.scale.setScalar(planetLayout.s);
     scene.add(planetGroup);
 
     const planet = new THREE.Mesh(
@@ -841,12 +864,14 @@ function initThreeScene(THREE) {
         planetGroup.rotation.y = drag.userYaw + tt * 0.04;
         planetGroup.rotation.x = drag.userPitch * 0.6;
 
-        /* Scroll choreography: planet drifts up & to the side as user scrolls,
-           camera dollies in slightly. */
+        /* Scroll choreography: planet drifts further out to the upper-right
+           and away as the user scrolls; never crosses the hero text. The
+           anchor varies with viewport so mobile keeps the title clean. */
         const sp = scrollProgress;
-        planetGroup.position.x = 4.6 - sp * 1.6 + mouse.x * 0.6;
-        planetGroup.position.y = -2.2 + sp * 1.8 - mouse.y * 0.4;
-        planetGroup.position.z = -3.5 - sp * 4;
+        planetGroup.position.x = planetLayout.x + sp * 1.4 + mouse.x * 0.18;
+        planetGroup.position.y = planetLayout.y + sp * 0.6 - mouse.y * 0.12;
+        planetGroup.position.z = planetLayout.z - sp * 4.5;
+        planetGroup.scale.setScalar(planetLayout.s);
 
         /* Comets: advance along their parametric path; respawn after duration. */
         for (let k = 0; k < comets.length; k++) {
@@ -892,6 +917,7 @@ function initThreeScene(THREE) {
     tick();
 
     window.addEventListener('resize', () => {
+        planetLayout = getPlanetLayout();
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight, false);
