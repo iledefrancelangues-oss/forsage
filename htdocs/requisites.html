@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Счет на оплату</title>
+    <style>
+        body { font-family: sans-serif; background: #f0f4f8; padding: 40px; }
+        .box { background: #fff; padding: 40px; max-width: 700px; margin: 0 auto; border: 1px solid #ddd; }
+        .qr { display: flex; align-items: center; gap: 20px; margin-top: 20px; border: 2px dashed #0099d5; padding: 20px; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h2>СЧЕТ № ЭРА-103</h2>
+        <p>Назначение: <b>Пополнение счета ЭТП ЭРА (ID: <span id="id">...</span>)</b></p>
+        <p>Сумма: <b id="amt">0</b> ₽</p>
+        <div class="qr">
+            <img id="qrc" src="" width="150">
+            <p>Сканируйте в приложении банка для оплаты</p>
+        </div>
+    </div>
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const id = localStorage.getItem('userId') || '777';
+        const amt = localStorage.getItem('paymentAmount') || '1000';
+        document.getElementById('id').innerText = id;
+        document.getElementById('amt').innerText = amt;
+        const qrData = `ST00012|Name=ООО ФОРСАЖ|PersonalAcc=40702810001500033019|BankName=ООО БАНК ТОЧКА|BIC=044525104|Purpose=Пополнение счета ID${id}|Sum=${amt}00`;
+        document.getElementById('qrc').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrData)}`;
+    });
+    </script>
+</body>
+</html>

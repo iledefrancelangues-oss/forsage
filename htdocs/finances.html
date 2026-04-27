@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Финансы</title>
+    <style>
+        body { font-family: sans-serif; background: #f0f4f8; padding: 40px; }
+        .card { background: #fff; padding: 30px; border-radius: 12px; max-width: 400px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        button { width: 100%; background: #0099d5; color: #fff; border: none; padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h3>Пополнение счета</h3>
+        <p>Ваш ID: <b>777</b></p>
+        <input type="number" id="amount" value="1000" min="1000" step="500">
+        <button onclick="pay()">Сформировать счет</button>
+        <p style="font-size: 11px; color: #888;">Минимум 1000 ₽, кратно 500 ₽</p>
+    </div>
+    <script>
+    function pay() {
+        const val = document.getElementById('amount').value;
+        if (val < 1000 || val % 500 !== 0) { alert("Неверная сумма!"); return; }
+        localStorage.setItem('paymentAmount', val);
+        localStorage.setItem('userId', '777');
+        window.location.href = 'requisites.html';
+    }
+    </script>
+</body>
+</html>
