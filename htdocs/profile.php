@@ -162,6 +162,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'upgra
 
 $user_id = (int)$_SESSION['user_id'];
 
+if (!isset($_SESSION['lang'])) {
+    $accept_lang = $_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? 'ru';
+    $_SESSION['lang'] = (substr($accept_lang, 0, 2) === 'ru') ? 'ru' : 'en';
+}
+if (isset($_GET['lang'])) {
+    $_SESSION['lang'] = ($_GET['lang'] === 'en') ? 'en' : 'ru';
+}
+$lang = $_SESSION['lang'];
+
 $stmt = $pdo->prepare(
     "SELECT id, username, balance, user_type, bid_pack_remaining, email, telegram_id
      FROM users WHERE id = ?"
@@ -302,8 +311,15 @@ if ($stmt->rowCount() > 0) {
     $reserved_lots = $stmt_res->fetchAll(PDO::FETCH_ASSOC);
 }
 
-$type_label  = ['respected' => '🤝 Уважаемый', 'responsible' => '✅ Ответственный'];
-$role_labels = [
+$type_label = $lang === 'en'
+    ? ['respected' => '🤝 Respected', 'responsible' => '✅ Responsible']
+    : ['respected' => '🤝 Уважаемый', 'responsible' => '✅ Ответственный'];
+$role_labels = $lang === 'en' ? [
+    'admin'       => 'Administrator',
+    'organizer'   => 'Organizer',
+    'responsible' => 'Responsible bidder',
+    'уважаемый'   => 'Bidder'
+] : [
     'admin'       => 'Администратор',
     'organizer'   => 'Организатор',
     'responsible' => 'Ответственный участник',
@@ -315,11 +331,11 @@ $method_icon = ['balance' => '💳', 'cash' => '📱🧾', 'pack' => '📦', 'qr
 
 ?>
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="<?= htmlspecialchars($lang) ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Личный кабинет — <?= htmlspecialchars($user['username']) ?></title>
+    <title><?= $lang === 'en' ? 'Profile — ' : 'Личный кабинет — ' ?><?= htmlspecialchars($user['username']) ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
@@ -640,40 +656,40 @@ $method_icon = ['balance' => '💳', 'cash' => '📱🧾', 'pack' => '📦', 'qr
     </a>
     <nav>
         <a href="profile.php" class="nav-item active">
-            <i data-lucide="layout-dashboard"></i> <span class="label">Кабинет</span>
+            <i data-lucide="layout-dashboard"></i> <span class="label"><?= $lang === 'en' ? 'Dashboard' : 'Кабинет' ?></span>
         </a>
         <a href="reestr.php" class="nav-item">
-            <i data-lucide="gavel"></i> <span class="label">Торги</span>
+            <i data-lucide="gavel"></i> <span class="label"><?= $lang === 'en' ? 'Auctions' : 'Торги' ?></span>
         </a>
         <a href="reestr.php?type=scandinavian&status=active" class="nav-item">
-            <i data-lucide="flame"></i> <span class="label">Скандинавский</span>
+            <i data-lucide="flame"></i> <span class="label"><?= $lang === 'en' ? 'Scandinavian' : 'Скандинавский' ?></span>
         </a>
         <a href="torgi_list.php" class="nav-item">
-            <i data-lucide="store"></i> <span class="label">Комиссионная</span>
+            <i data-lucide="store"></i> <span class="label"><?= $lang === 'en' ? 'Commission' : 'Комиссионная' ?></span>
         </a>
         <a href="#" class="nav-item" id="password-tab-link">
-            <i data-lucide="lock"></i> <span class="label">Пароль</span>
+            <i data-lucide="lock"></i> <span class="label"><?= $lang === 'en' ? 'Password' : 'Пароль' ?></span>
         </a>
         <a href="#" class="nav-item" id="telegram-tab-link">
             <i data-lucide="message-circle"></i> <span class="label">Telegram</span>
         </a>
     </nav>
     <a href="logout.php" class="nav-item danger" style="margin-top:auto;">
-        <i data-lucide="log-out"></i> <span class="label">Выйти</span>
+        <i data-lucide="log-out"></i> <span class="label"><?= $lang === 'en' ? 'Sign out' : 'Выйти' ?></span>
     </a>
 </aside>
 
 <main class="main">
     <div class="topbar">
         <div>
-            <h2>Добро пожаловать, <?= htmlspecialchars($user['username']) ?>!</h2>
+            <h2><?= $lang === 'en' ? 'Welcome, ' : 'Добро пожаловать, ' ?><?= htmlspecialchars($user['username']) ?>!</h2>
             <p style="color:var(--dim);margin:4px 0 0;font-size:14px;">
                 <?= $type_label[$user['user_type']] ?? '🤝 Уважаемый' ?>
                 &nbsp;·&nbsp; <?= date('d.m.Y') ?>
             </p>
         </div>
         <div class="online-badge">
-            <span class="dot-green"></span> Онлайн
+            <span class="dot-green"></span> <?= $lang === 'en' ? 'Online' : 'Онлайн' ?>
         </div>
     </div>
 
@@ -688,33 +704,33 @@ $method_icon = ['balance' => '💳', 'cash' => '📱🧾', 'pack' => '📦', 'qr
     <div id="main-content">
         <div class="grid-2" style="margin-bottom:24px;">
             <div class="balance-card">
-                <div class="bal-label">Баланс личного кабинета</div>
+                <div class="bal-label"><?= $lang === 'en' ? 'Account balance' : 'Баланс личного кабинета' ?></div>
                 <div class="bal-val" id="balance-display">
                     <?= number_format((int)$user['balance'], 0, '.', "\u{00A0}") ?>&nbsp;₽
                 </div>
                 <div class="bal-sub">
-                    Пакет ставок: <b style="color:#f59e0b;"><?= (int)$user['bid_pack_remaining'] ?> шт.</b>
+                    <?= $lang === 'en' ? 'Bid pack:' : 'Пакет ставок:' ?> <b style="color:#f59e0b;"><?= (int)$user['bid_pack_remaining'] ?> <?= $lang === 'en' ? 'pcs' : 'шт.' ?></b>
                 </div>
             </div>
             <div class="card" style="display:flex;flex-direction:column;gap:16px;">
                 <div class="status-section">
                     <div class="status-info">
-                        <div class="stat-label">Статус</div>
+                        <div class="stat-label"><?= $lang === 'en' ? 'Status' : 'Статус' ?></div>
                         <div class="stat-val"><?= $type_label[$user['user_type']] ?? '🤝 Уважаемый' ?></div>
                         <div class="bal-sub" style="margin-top:6px;">
-                            Роль: <?= $role_labels[$user['user_type']] ?? 'Участник' ?>
+                            <?= $lang === 'en' ? 'Role:' : 'Роль:' ?> <?= $role_labels[$user['user_type']] ?? ($lang === 'en' ? 'Bidder' : 'Участник') ?>
                         </div>
                         <div class="bal-sub" style="margin-top:6px;">
                             <?php if ($user['user_type'] === 'responsible'): ?>
-                                💎 Уже максимальный статус
+                                💎 <?= $lang === 'en' ? 'Highest status reached' : 'Уже максимальный статус' ?>
                             <?php else: ?>
-                                Повысьте до <b>✅ Ответственного</b>
+                                <?= $lang === 'en' ? 'Upgrade to <b>✅ Responsible</b>' : 'Повысьте до <b>✅ Ответственного</b>' ?>
                             <?php endif; ?>
                         </div>
                     </div>
                     <?php if ($user['user_type'] !== 'responsible'): ?>
                     <button class="btn btn-success upgrade-btn" onclick="openModal('upgradeModal')">
-                        ⭐ Повысить<br><span style="font-size:11px;font-weight:bold;">8000 ₽ (НДС 22%)</span>
+                        ⭐ <?= $lang === 'en' ? 'Upgrade' : 'Повысить' ?><br><span style="font-size:11px;font-weight:bold;">8000 ₽ <?= $lang === 'en' ? '(VAT 22%)' : '(НДС 22%)' ?></span>
                     </button>
                     <?php endif; ?>
                 </div>
@@ -722,28 +738,28 @@ $method_icon = ['balance' => '💳', 'cash' => '📱🧾', 'pack' => '📦', 'qr
                 <button class="btn btn-outline upgrade-btn"
                         style="margin-top:8px;font-size:12px;padding:8px 14px;"
                         onclick="chooseOrganizerFree()">
-                    🧾 Выбрать как Организатора
+                    🧾 <?= $lang === 'en' ? 'Become an Organizer' : 'Выбрать как Организатора' ?>
                 </button>
                 <?php endif; ?>
                 <div class="stat-card">
-                    <div class="stat-label">Сделано ставок всего</div>
+                    <div class="stat-label"><?= $lang === 'en' ? 'Total bids placed' : 'Сделано ставок всего' ?></div>
                     <div class="stat-val"><?= count($bids_history) ?>+</div>
                 </div>
             </div>
         </div>
 
         <div class="card" style="margin-bottom:24px;">
-            <h3 style="margin:0 0 20px;">💰 Пополнение баланса</h3>
+            <h3 style="margin:0 0 20px;">💰 <?= $lang === 'en' ? 'Top up balance' : 'Пополнение баланса' ?></h3>
             <div class="amounts" id="amounts-row">
                 <?php foreach ([1000,3000,5000,10000,25000,50000] as $a): ?>
                 <button class="amt-btn" onclick="selectAmt(<?= $a ?>)"><?= number_format($a, 0, '.', "\u{00A0}") ?>&nbsp;₽</button>
                 <?php endforeach; ?>
             </div>
             <input class="field" type="number" id="custom-amount"
-                   placeholder="Или введите сумму" min="100" step="100"
+                   placeholder="<?= $lang === 'en' ? 'Or enter an amount' : 'Или введите сумму' ?>" min="100" step="100"
                    oninput="deselectAmts()" style="max-width:300px;">
             <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:4px;">
-                <button class="btn btn-primary" onclick="topupQR()">📱 Оплатить по QR / СБП</button>
+                <button class="btn btn-primary" onclick="topupQR()">📱 <?= $lang === 'en' ? 'Pay by QR / SBP' : 'Оплатить по QR / СБП' ?></button>
                 <button class="btn btn-outline" onclick="topupReceipt()">🧾 Получить квитанцию</button>
             </div>
             <div id="topup-msg" style="margin-top:10px;"></div>
@@ -869,10 +885,10 @@ $method_icon = ['balance' => '💳', 'cash' => '📱🧾', 'pack' => '📦', 'qr
 
         <!-- Блок Скандинавские аукционы -->
         <div class="card" style="margin-top:24px;">
-            <h3 style="margin:0 0 16px;">🔥 Скандинавские аукционы</h3>
+            <h3 style="margin:0 0 16px;">🔥 <?= $lang === 'en' ? 'Scandinavian auctions' : 'Скандинавские аукционы' ?></h3>
             <div class="tabs">
-                <button class="tab-btn active" data-tab="scand-participant">Моё участие</button>
-                <button class="tab-btn" data-tab="scand-owner">Мои аукционы</button>
+                <button class="tab-btn active" data-tab="scand-participant"><?= $lang === 'en' ? 'My participation' : 'Моё участие' ?></button>
+                <button class="tab-btn" data-tab="scand-owner"><?= $lang === 'en' ? 'My auctions' : 'Мои аукционы' ?></button>
             </div>
             <div class="tab-pane active" id="tab-scand-participant">
                 <?php if (count($scand_participant_lots) > 0): ?>
@@ -932,11 +948,11 @@ $method_icon = ['balance' => '💳', 'cash' => '📱🧾', 'pack' => '📦', 'qr
 
         <!-- Блок Комиссионная продажа -->
         <div class="card" style="margin-top:24px;">
-            <h3 style="margin:0 0 16px;">🏢 Комиссионная продажа</h3>
+            <h3 style="margin:0 0 16px;">🏢 <?= $lang === 'en' ? 'Commission sales' : 'Комиссионная продажа' ?></h3>
             <div class="tabs">
-                <button class="tab-btn active" data-tab="commission-my">Мои лоты</button>
-                <button class="tab-btn" data-tab="commission-interest">Мой интерес</button>
-                <button class="tab-btn" data-tab="commission-reserved">Зарезервировано</button>
+                <button class="tab-btn active" data-tab="commission-my"><?= $lang === 'en' ? 'My lots' : 'Мои лоты' ?></button>
+                <button class="tab-btn" data-tab="commission-interest"><?= $lang === 'en' ? 'My interests' : 'Мой интерес' ?></button>
+                <button class="tab-btn" data-tab="commission-reserved"><?= $lang === 'en' ? 'Reserved' : 'Зарезервировано' ?></button>
             </div>
             <div class="tab-pane active" id="tab-commission-my">
                 <?php if (count($my_commission_lots) > 0): ?>
@@ -1027,22 +1043,22 @@ $method_icon = ['balance' => '💳', 'cash' => '📱🧾', 'pack' => '📦', 'qr
     <!-- Блок смены пароля (скрыт по умолчанию) -->
     <div id="password-content" style="display:none;">
         <div class="card">
-            <h3 style="margin:0 0 20px;">🔐 Смена пароля</h3>
+            <h3 style="margin:0 0 20px;">🔐 <?= $lang === 'en' ? 'Change password' : 'Смена пароля' ?></h3>
             <form method="POST" style="max-width:400px;">
                 <input type="hidden" name="action" value="change_password">
                 <div class="form-group">
-                    <label class="form-label">Текущий пароль</label>
+                    <label class="form-label"><?= $lang === 'en' ? 'Current password' : 'Текущий пароль' ?></label>
                     <input type="password" name="old_password" class="form-input" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Новый пароль</label>
+                    <label class="form-label"><?= $lang === 'en' ? 'New password' : 'Новый пароль' ?></label>
                     <input type="password" name="new_password" class="form-input" required minlength="6">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Подтвердите пароль</label>
+                    <label class="form-label"><?= $lang === 'en' ? 'Confirm password' : 'Подтвердите пароль' ?></label>
                     <input type="password" name="confirm_password" class="form-input" required minlength="6">
                 </div>
-                <button type="submit" class="btn btn-primary">Изменить пароль</button>
+                <button type="submit" class="btn btn-primary"><?= $lang === 'en' ? 'Change password' : 'Изменить пароль' ?></button>
             </form>
         </div>
     </div>
@@ -1050,20 +1066,20 @@ $method_icon = ['balance' => '💳', 'cash' => '📱🧾', 'pack' => '📦', 'qr
     <!-- Блок Telegram (скрыт по умолчанию) -->
     <div id="telegram-content" style="display:none;">
         <div class="card">
-            <h3 style="margin:0 0 20px;">📱 Привязка Telegram</h3>
+            <h3 style="margin:0 0 20px;">📱 <?= $lang === 'en' ? 'Telegram link' : 'Привязка Telegram' ?></h3>
             <?php if (!empty($user['telegram_id'])): ?>
                 <p style="color:var(--dim); margin-bottom:16px;"><strong>Telegram ID:</strong> <?= htmlspecialchars($user['telegram_id']) ?></p>
-                <p style="color:#4ade80; margin-bottom:20px;">✅ Telegram успешно привязан</p>
+                <p style="color:#4ade80; margin-bottom:20px;">✅ <?= $lang === 'en' ? 'Telegram linked successfully' : 'Telegram успешно привязан' ?></p>
                 <form method="POST">
                     <input type="hidden" name="action" value="unlink_telegram">
-                    <button type="submit" class="btn btn-danger">Отвязать Telegram</button>
+                    <button type="submit" class="btn btn-danger"><?= $lang === 'en' ? 'Unlink Telegram' : 'Отвязать Telegram' ?></button>
                 </form>
             <?php else: ?>
-                <p style="color:var(--dim); margin-bottom:16px;">Привяжите Telegram для получения уведомлений о торгах.</p>
+                <p style="color:var(--dim); margin-bottom:16px;"><?= $lang === 'en' ? 'Link Telegram to receive auction notifications.' : 'Привяжите Telegram для получения уведомлений о торгах.' ?></p>
                 <ol style="color:var(--dim); margin:16px 0; padding-left:20px;">
-                    <li>Откройте бота <a href="https://t.me/userinfobot" target="_blank" style="color:var(--accent);">@userinfobot</a></li>
-                    <li>Скопируйте ваш Telegram ID</li>
-                    <li>Вставьте его в поле ниже</li>
+                    <li><?= $lang === 'en' ? 'Open the bot' : 'Откройте бота' ?> <a href="https://t.me/userinfobot" target="_blank" style="color:var(--accent);">@userinfobot</a></li>
+                    <li><?= $lang === 'en' ? 'Copy your Telegram ID' : 'Скопируйте ваш Telegram ID' ?></li>
+                    <li><?= $lang === 'en' ? 'Paste it into the field below' : 'Вставьте его в поле ниже' ?></li>
                 </ol>
                 <form method="POST" style="max-width:400px;">
                     <input type="hidden" name="action" value="link_telegram">
@@ -1071,7 +1087,7 @@ $method_icon = ['balance' => '💳', 'cash' => '📱🧾', 'pack' => '📦', 'qr
                         <label class="form-label">Telegram ID</label>
                         <input type="text" name="telegram_id" class="form-input" placeholder="123456789" required>
                     </div>
-                    <button type="submit" class="btn btn-primary">Привязать Telegram</button>
+                    <button type="submit" class="btn btn-primary"><?= $lang === 'en' ? 'Link Telegram' : 'Привязать Telegram' ?></button>
                 </form>
             <?php endif; ?>
         </div>

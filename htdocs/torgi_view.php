@@ -6,6 +6,15 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+if (!isset($_SESSION['lang'])) {
+    $accept_lang = $_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? 'ru';
+    $_SESSION['lang'] = (substr($accept_lang, 0, 2) === 'ru') ? 'ru' : 'en';
+}
+if (isset($_GET['lang'])) {
+    $_SESSION['lang'] = ($_GET['lang'] === 'en') ? 'en' : 'ru';
+}
+$lang = $_SESSION['lang'];
+
 require_once 'db.php';
 
 function e($value): string
