@@ -936,79 +936,59 @@ setTimeout(() => {
     animation: none !important;
 }
 
-/* Перевороты для разных колонок. */
-@keyframes cardFlyLeft {
-    0%   { opacity: 0; transform: rotateY(-95deg) translate3d(-180px, 80px, -260px) scale(.55); filter: blur(6px); }
-    55%  { opacity: 1; transform: rotateY( 14deg) translate3d(  16px, -18px, 60px) scale(1.06); filter: blur(0); }
-    78%  {              transform: rotateY( -6deg) translate3d(  -6px,   6px, 20px) scale(.99); }
-    100% { opacity: 1; transform: rotateY(  0deg) translate3d(   0px,   0px,  0px) scale(1);    filter: blur(0); }
+/* Появление карточек: мягкое всплытие с лёгким 3D-разворотом.
+   Без резких разворотов на 90°, без блюра, без яркой вспышки —
+   единый плавный приход всех карточек. */
+@keyframes cardSlideLeft {
+    0%   { opacity: 0; transform: translate3d(-60px, 30px, 0) rotateY(-12deg) scale(.96); }
+    100% { opacity: 1; transform: translate3d(  0,    0,  0) rotateY(  0deg) scale(1); }
 }
-@keyframes cardDropDown {
-    0%   { opacity: 0; transform: rotateX(-80deg) translate3d(0, -180px, -260px) scale(.55); filter: blur(6px); }
-    55%  { opacity: 1; transform: rotateX( 12deg) translate3d(0,   18px,  60px) scale(1.06); filter: blur(0); }
-    78%  {              transform: rotateX( -5deg) translate3d(0,   -6px,  20px) scale(.99); }
-    100% { opacity: 1; transform: rotateX(  0deg) translate3d(0,    0px,   0px) scale(1);    filter: blur(0); }
+@keyframes cardSlideUp {
+    0%   { opacity: 0; transform: translate3d( 0,  60px, 0) rotateX(  8deg) scale(.96); }
+    100% { opacity: 1; transform: translate3d( 0,    0,  0) rotateX(  0deg) scale(1); }
 }
-@keyframes cardFlyRight {
-    0%   { opacity: 0; transform: rotateY( 95deg) translate3d( 180px, 80px, -260px) scale(.55); filter: blur(6px); }
-    55%  { opacity: 1; transform: rotateY(-14deg) translate3d( -16px, -18px, 60px) scale(1.06); filter: blur(0); }
-    78%  {              transform: rotateY(  6deg) translate3d(   6px,   6px, 20px) scale(.99); }
-    100% { opacity: 1; transform: rotateY(  0deg) translate3d(   0px,  0px,  0px) scale(1);    filter: blur(0); }
-}
-/* Свечение во время появления — отдельный layer, чтобы не конфликтовать с
-   transform-анимацией. Ставим box-shadow прямой анимацией (не keyframes
-   на тот же элемент дважды — браузеры могут их склеить). */
-@keyframes cardGlowFlash {
-    0%   { box-shadow: 0 18px 48px rgba(0,0,0,.45), 0 0 0 0  rgba(56,189,248,0); }
-    20%  { box-shadow: 0 18px 48px rgba(0,0,0,.45), 0 0 0 3px rgba(56,189,248,.95), 0 0 140px rgba(56,189,248,1), inset 0 0 80px rgba(56,189,248,.35); }
-    60%  { box-shadow: 0 18px 48px rgba(0,0,0,.45), 0 0 0 2px rgba(56,189,248,.65), 0 0 90px  rgba(56,189,248,.55), inset 0 0 30px rgba(56,189,248,.12); }
-    100% { box-shadow: 0 18px 48px rgba(0,0,0,.45), 0 0 0 1px rgba(148,163,184,.15), 0 0 0 rgba(56,189,248,0); }
+@keyframes cardSlideRight {
+    0%   { opacity: 0; transform: translate3d( 60px, 30px, 0) rotateY( 12deg) scale(.96); }
+    100% { opacity: 1; transform: translate3d(  0,    0,  0) rotateY(  0deg) scale(1); }
 }
 
 .h-scroll-track > .auc-card.in-view {
-    animation:
-        cardFlyLeft 1.7s cubic-bezier(.2, .9, .35, 1.15) both,
-        cardGlowFlash 2.5s ease-out both;
+    animation: cardSlideLeft 0.85s cubic-bezier(.22,.61,.36,1) both;
 }
 .h-scroll-track > .auc-card:nth-child(3n+2).in-view {
-    animation:
-        cardDropDown 1.7s cubic-bezier(.2, .9, .35, 1.15) both,
-        cardGlowFlash 2.5s ease-out both;
+    animation: cardSlideUp 0.85s cubic-bezier(.22,.61,.36,1) both;
 }
 .h-scroll-track > .auc-card:nth-child(3n).in-view {
-    animation:
-        cardFlyRight 1.7s cubic-bezier(.2, .9, .35, 1.15) both,
-        cardGlowFlash 2.5s ease-out both;
+    animation: cardSlideRight 0.85s cubic-bezier(.22,.61,.36,1) both;
 }
 
-/* Stagger между карточками — общая волна ~1.6с. */
-.h-scroll-track > .auc-card:nth-child(1).in-view { animation-delay: .00s, .00s; }
-.h-scroll-track > .auc-card:nth-child(2).in-view { animation-delay: .25s, .25s; }
-.h-scroll-track > .auc-card:nth-child(3).in-view { animation-delay: .50s, .50s; }
-.h-scroll-track > .auc-card:nth-child(4).in-view { animation-delay: .75s, .75s; }
-.h-scroll-track > .auc-card:nth-child(5).in-view { animation-delay: 1.00s, 1.00s; }
-.h-scroll-track > .auc-card:nth-child(6).in-view { animation-delay: 1.25s, 1.25s; }
+/* Stagger между карточками — мягкая волна. */
+.h-scroll-track > .auc-card:nth-child(1).in-view { animation-delay: .00s; }
+.h-scroll-track > .auc-card:nth-child(2).in-view { animation-delay: .10s; }
+.h-scroll-track > .auc-card:nth-child(3).in-view { animation-delay: .20s; }
+.h-scroll-track > .auc-card:nth-child(4).in-view { animation-delay: .30s; }
+.h-scroll-track > .auc-card:nth-child(5).in-view { animation-delay: .40s; }
+.h-scroll-track > .auc-card:nth-child(6).in-view { animation-delay: .50s; }
 
 /* === ПЛИТКИ РОЛЕЙ ========================================================== */
 @keyframes tileFlipIn {
-    0%   { opacity: 0; transform: rotateX(60deg) translateY(120px) scale(.8); filter: blur(4px); }
-    60%  { opacity: 1; transform: rotateX(-8deg) translateY(-10px) scale(1.04); filter: blur(0); }
-    100% { opacity: 1; transform: rotateX(0)    translateY(0)    scale(1);     filter: blur(0); }
+    0%   { opacity: 0; transform: rotateX(20deg) translateY(60px) scale(.96); }
+    100% { opacity: 1; transform: rotateX(0)     translateY(0)    scale(1); }
 }
-.tiles-grid > .tile.in-view { animation: tileFlipIn 1.4s cubic-bezier(.2,.9,.35,1.1) both; }
+.tiles-grid > .tile.in-view { animation: tileFlipIn 0.85s cubic-bezier(.22,.61,.36,1) both; }
 .tiles-grid > .tile:nth-child(1).in-view { animation-delay: 0s; }
-.tiles-grid > .tile:nth-child(2).in-view { animation-delay: .22s; }
-.tiles-grid > .tile:nth-child(3).in-view { animation-delay: .44s; }
+.tiles-grid > .tile:nth-child(2).in-view { animation-delay: .12s; }
+.tiles-grid > .tile:nth-child(3).in-view { animation-delay: .24s; }
 
 /* === ПРЕИМУЩЕСТВА ========================================================= */
 @keyframes advRise {
-    0%   { opacity: 0; transform: rotateX(40deg) translateY(110px) scale(.9); }
-    100% { opacity: 1; transform: rotateX(0)    translateY(0)    scale(1); }
+    0%   { opacity: 0; transform: translateY(50px) scale(.96); }
+    100% { opacity: 1; transform: translateY(0)    scale(1); }
 }
-.adv-grid > .adv.in-view { animation: advRise 1.2s cubic-bezier(.2,.9,.3,1.06) both; }
+.adv-grid > .adv.in-view { animation: advRise 0.8s cubic-bezier(.22,.61,.36,1) both; }
 .adv-grid > .adv:nth-child(1).in-view { animation-delay: .05s; }
-.adv-grid > .adv:nth-child(2).in-view { animation-delay: .22s; }
-.adv-grid > .adv:nth-child(3).in-view { animation-delay: .39s; }
+.adv-grid > .adv:nth-child(2).in-view { animation-delay: .15s; }
+.adv-grid > .adv:nth-child(3).in-view { animation-delay: .25s; }
 
 /* === HOVER (после того, как карточка встала на место) ===================== */
 /* Шиммер-плёнка на hover — диагональный световой блик, бегущий по карточке. */
