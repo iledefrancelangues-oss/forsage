@@ -333,6 +333,81 @@ if (!isset($lang)) $lang = $_SESSION['lang'] ?? 'ru';
     .auth-status-card .name { flex: 1; }
 }
 @media(min-width:1024px) { #auth-modal-content { max-width: 520px; } }
+
+/* === Live-payment в модалке регистрации (статус «Ответственный») ========== */
+.auth-pay-tabs {
+    display: flex;
+    gap: 4px;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 4px;
+    margin-bottom: 12px;
+}
+.auth-pay-tab {
+    flex: 1;
+    padding: 10px;
+    background: transparent;
+    color: #94a3b8;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+    transition: all .18s;
+}
+.auth-pay-tab:hover { color: #cbd5e1; }
+.auth-pay-tab.active {
+    background: #1e293b;
+    color: #fff;
+    box-shadow: 0 0 0 1px #3b82f6 inset;
+}
+.auth-pay-tab-panel { animation: payPanelIn .2s ease; }
+@keyframes payPanelIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+.auth-pay-qr-box {
+    background: #fff;
+    border-radius: 12px;
+    padding: 12px;
+    text-align: center;
+    margin: 0 auto 10px;
+    max-width: 260px;
+}
+.auth-pay-qr-box img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 6px;
+}
+
+.auth-pay-hint {
+    font-size: 11px;
+    color: #94a3b8;
+    line-height: 1.55;
+    background: rgba(15,23,42,.55);
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 8px 10px;
+}
+
+.auth-pay-receipt-btn {
+    margin-top: 4px;
+    background: linear-gradient(135deg, #0088cc, #38bdf8);
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.auth-pay-receipt-btn:hover { background: linear-gradient(135deg, #0077b3, #2bb0ed); }
+
+.auth-pay-details-mini {
+    margin-top: 10px;
+    font-size: 11px;
+    color: #cbd5e1;
+    line-height: 1.7;
+    background: rgba(34,197,94,.08);
+    border: 1px solid rgba(34,197,94,.4);
+    border-radius: 8px;
+    padding: 8px 10px;
+}
+.auth-pay-details-mini b { color: #f1f5f9; }
 </style>
 
 <div id="auth-modal-overlay">
@@ -407,23 +482,79 @@ if (!isset($lang)) $lang = $_SESSION['lang'] ?? 'ru';
                         </label>
                     </div>
 
-                    <!-- Способ оплаты для статуса "Ответственный" -->
+                    <!-- Способ оплаты для статуса «Ответственный» — оплата доступна
+                         сразу при выборе статуса, без ожидания регистрации. Два
+                         режима: QR-код (показывается прямо в модалке) и квитанция
+                         с реквизитами (открывается в отдельном окне с печатью,
+                         QR-кодом и кнопкой «Закрыть»). -->
                     <div id="auth-payment-block" class="auth-payment-block">
-                        <div style="font-weight:600; margin-bottom:6px; color:#cbd5e1;">
-                            <?= $lang === 'en' ? 'Payment method' : 'Способ оплаты' ?>:
+                        <div style="font-weight:600; margin-bottom:8px; color:#cbd5e1;">
+                            <?= $lang === 'en' ? 'Payment for «Responsible»' : 'Оплата статуса «Ответственный»' ?>
+                            <span style="float:right; color:#60a5fa; font-weight:700;">8 000 ₽</span>
                         </div>
-                        <label class="auth-payment-row">
-                            <input type="radio" name="auth-r-payment" value="qr" checked>
-                            <span><?= $lang === 'en' ? 'QR-code (SBP / bank app)' : 'QR-код (СБП / банк)' ?></span>
-                        </label>
-                        <label class="auth-payment-row">
-                            <input type="radio" name="auth-r-payment" value="receipt">
-                            <span><?= $lang === 'en' ? 'Receipt with bank details' : 'Квитанция с реквизитами' ?></span>
-                        </label>
-                        <div class="auth-payment-info">
-                            <?= $lang === 'en'
-                                ? 'After clicking «Create account» the QR-code will appear right here. You can also open a printable receipt in a new window. The Responsible status is activated by the administrator after the payment is verified.'
-                                : 'После нажатия «Зарегистрироваться» QR-код появится прямо здесь. Также можно открыть печатную квитанцию в новом окне. Статус «Ответственный» активируется администратором после подтверждения оплаты.' ?>
+
+                        <!-- Переключатель способов оплаты -->
+                        <div class="auth-pay-tabs">
+                            <button type="button" class="auth-pay-tab active"
+                                    data-method="qr"
+                                    onclick="authSelectPayMethod('qr')">
+                                <?= $lang === 'en' ? 'QR-code' : 'QR-код' ?>
+                            </button>
+                            <button type="button" class="auth-pay-tab"
+                                    data-method="receipt"
+                                    onclick="authSelectPayMethod('receipt')">
+                                <?= $lang === 'en' ? 'Receipt' : 'Квитанция' ?>
+                            </button>
+                        </div>
+                        <input type="hidden" name="auth-r-payment" id="auth-r-payment" value="qr">
+
+                        <!-- QR-код: показывается сразу при выборе «Ответственный» -->
+                        <div id="auth-pay-qr-tab" class="auth-pay-tab-panel">
+                            <div class="auth-pay-qr-box">
+                                <img id="auth-pay-qr-preview"
+                                     alt="QR ST00012"
+                                     src="<?php
+                                        $sumKopecks = 8000 * 100;
+                                        $purpose = 'Povyshenie statusa Otvetstvenny 8000 RUB';
+                                        $qrPayload = 'ST00012'
+                                            . '|Name=ООО Форсаж'
+                                            . '|PersonalAcc=40702810101500033019'
+                                            . '|BankName=ООО Банк Точка'
+                                            . '|BIC=044525104'
+                                            . '|CorrespAcc=30101810745374525104'
+                                            . '|PayeeINN=7728282160'
+                                            . '|KPP=773001001'
+                                            . '|Sum=' . $sumKopecks
+                                            . '|Purpose=' . $purpose;
+                                        echo 'https://api.qrserver.com/v1/create-qr-code/?size=240x240&data='
+                                            . urlencode($qrPayload);
+                                     ?>">
+                            </div>
+                            <div class="auth-pay-hint">
+                                <?= $lang === 'en'
+                                    ? 'Scan the QR with any banking app (SBP-compatible). After payment please complete registration below — the administrator activates the status once the payment is verified.'
+                                    : 'Отсканируйте QR любым банковским приложением (СБП). После оплаты заполните форму регистрации ниже — администратор активирует статус после подтверждения платежа.' ?>
+                            </div>
+                        </div>
+
+                        <!-- Квитанция: открыть/распечатать в новом окне -->
+                        <div id="auth-pay-receipt-tab" class="auth-pay-tab-panel" style="display:none;">
+                            <div class="auth-pay-hint" style="margin-bottom:10px;">
+                                <?= $lang === 'en'
+                                    ? 'A printable receipt with full bank details and QR-code will open in a new window. Use the «Print» button to print it or «Close» to return.'
+                                    : 'Откроется печатная квитанция с реквизитами получателя, QR-кодом, кнопками «Печать» и «Закрыть».' ?>
+                            </div>
+                            <button type="button"
+                                    class="auth-btn auth-btn-primary auth-pay-receipt-btn"
+                                    onclick="authOpenReceipt()">
+                                🧾 <?= $lang === 'en' ? 'Open printable receipt' : 'Открыть квитанцию' ?>
+                            </button>
+                        </div>
+
+                        <div class="auth-pay-details-mini">
+                            <div><b><?= $lang === 'en' ? 'Recipient:' : 'Получатель:' ?></b> ООО «Форсаж» · ИНН 7728282160</div>
+                            <div><b><?= $lang === 'en' ? 'Account:' : 'Счёт:' ?></b> 40702810101500033019, ООО Банк Точка, БИК 044525104</div>
+                            <div><b><?= $lang === 'en' ? 'Amount:' : 'Сумма:' ?></b> 8 000 ₽ (<?= $lang === 'en' ? 'incl. VAT 22%' : 'в т.ч. НДС 22%' ?>)</div>
                         </div>
                     </div>
 
@@ -607,7 +738,9 @@ function authDoLogin() {
 }
 
 /* Выбор статуса в форме регистрации — подсветить выбранную карточку
-   и показать/скрыть блоки способа оплаты / информации для Организатора. */
+   и показать/скрыть блоки способа оплаты / информации для Организатора.
+   Для «Ответственного» оплата (QR + квитанция) становится доступна
+   немедленно — без ожидания нажатия «Зарегистрироваться». */
 function authSelectStatus(value) {
     var cards = document.querySelectorAll('.auth-status-card');
     cards.forEach(function(c){
@@ -620,6 +753,36 @@ function authSelectStatus(value) {
     var info = document.getElementById('auth-organizer-info');
     if (pay)  pay.classList.toggle('visible',  value === 'responsible');
     if (info) info.classList.toggle('visible', value === 'organizer');
+    /* По умолчанию активна вкладка QR — пользователь сразу видит код. */
+    if (value === 'responsible') authSelectPayMethod('qr');
+}
+
+/* Переключение между QR-кодом и квитанцией внутри модалки регистрации. */
+function authSelectPayMethod(method) {
+    var qrTab    = document.getElementById('auth-pay-qr-tab');
+    var recTab   = document.getElementById('auth-pay-receipt-tab');
+    var hidden   = document.getElementById('auth-r-payment');
+    var btns     = document.querySelectorAll('.auth-pay-tab');
+    if (qrTab)  qrTab.style.display  = (method === 'qr')      ? 'block' : 'none';
+    if (recTab) recTab.style.display = (method === 'receipt') ? 'block' : 'none';
+    if (hidden) hidden.value = method;
+    btns.forEach(function(b){
+        b.classList.toggle('active', b.getAttribute('data-method') === method);
+    });
+}
+
+/* Открыть печатную квитанцию в новом окне. Параметры status/sum
+   передаются через query-string — upgrade_receipt.php их читает и
+   рендерит квитанцию даже без авторизации. */
+function authOpenReceipt() {
+    var url = 'upgrade_receipt.php?status='
+        + encodeURIComponent('Ответственный')
+        + '&sum=8000&close=1';
+    var w = window.open(url, '_blank', 'noopener,width=900,height=820');
+    if (!w) {
+        /* Поп-апы заблокированы — открываем в текущей вкладке. */
+        window.location.href = url;
+    }
 }
 
 function authDoRegister() {
@@ -635,7 +798,11 @@ function authDoRegister() {
     /* Считываем выбранный статус и способ оплаты. */
     var utypeEl  = document.querySelector('input[name="auth-r-utype"]:checked');
     var utype    = utypeEl ? utypeEl.value : 'respected';
-    var paymentEl = document.querySelector('input[name="auth-r-payment"]:checked');
+    /* Способ оплаты теперь хранится в hidden input #auth-r-payment
+       (переключается вкладками «QR-код» / «Квитанция»). Сохраняем
+       обратную совместимость со старым radio[name=auth-r-payment]. */
+    var paymentEl = document.getElementById('auth-r-payment')
+                 || document.querySelector('input[name="auth-r-payment"]:checked');
     var payment   = paymentEl ? paymentEl.value : 'qr';
 
     if (!fullname || !user || !email || !pass) {

@@ -193,7 +193,8 @@ section {
     transform-style: preserve-3d; transition: transform .25s cubic-bezier(.2,.7,.2,1), border-color .25s;
 }
 .tile::before { content: ''; position: absolute; top: -120%; left: -120%; width: 240%; height: 240%; background: radial-gradient(circle at 30% 30%, rgba(56,189,248,.18), transparent 50%); opacity: 0; transition: opacity .35s; }
-.tile:hover { border-color: rgba(56,189,248,.45); transform: translateY(-6px); }
+/* .tile:hover вынесен в .tile.settled:hover (см. секцию HOVER ниже),
+   чтобы не конфликтовать с keyframe-анимацией входа. */
 .tile:hover::before { opacity: 1; }
 .tile .tile-icon { width: 56px; height: 56px; border-radius: 14px; background: linear-gradient(135deg, #0088cc, #38bdf8); display: flex; align-items: center; justify-content: center; margin-bottom: 22px; font-size: 28px; box-shadow: 0 12px 30px rgba(0,136,204,.35); }
 .tile h3 { font-size: 22px; font-weight: 900; color: #fff; margin-bottom: 10px; }
@@ -806,22 +807,44 @@ function startScrollTimeline() {
         });
     }
 
-    /* СЕКЦИИ: класс .in-view запускает CSS-keyframe-анимацию. Триггер срабатывает,
-       когда хотя бы 18% карточки находится в видимой зоне — пользователь к этому
-       моменту уже видит секцию и точно поймает анимацию. */
+    /* СЕКЦИИ: класс .in-view запускает CSS-keyframe-анимацию входа.
+       Триггер срабатывает, когда хотя бы 18% карточки находится в видимой
+       зоне. После завершения keyframe навешиваем .settled — он фиксирует
+       финальное состояние (opacity:1; transform:none) уже без animation,
+       благодаря чему hover-наклон не «отменяет» fill-mode и плитка
+       не пропадает. 3D-эффект, таким образом, играется ровно один раз. */
     const reveal = document.querySelectorAll('.section-head, .tile, .auc-card, .adv, .act-5 .title-mega, .act-5 .subtitle, .act-5 .hero-actions');
+    const cardSel = ['tile','auc-card','adv'];
+    const isCard = el => cardSel.some(c => el.classList.contains(c));
+    const settle = el => el.classList.add('settled');
+
+    /* Один глобальный animationend-слушатель — ловит окончания keyframe
+       cardFlyLeft / cardFlyRight / cardDropDown / tileFlipIn / advRise. */
+    document.addEventListener('animationend', e => {
+        if (!e.target || !isCard(e.target)) return;
+        if (e.animationName && /Flip|Fly|Drop|Rise/.test(e.animationName)) {
+            settle(e.target);
+        }
+    }, true);
+
     if ('IntersectionObserver' in window) {
         const io = new IntersectionObserver(entries => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
                     entry.target.classList.add('in-view');
                     io.unobserve(entry.target);
+                    /* Бэкап: если animationend по какой-то причине не сработал
+                       (prefers-reduced-motion, ранний hover, баг браузера) —
+                       через ~2.2с принудительно переводим карточку в settled. */
+                    if (isCard(entry.target)) {
+                        setTimeout(() => settle(entry.target), 2200);
+                    }
                 }
             });
         }, { threshold: 0.18, rootMargin: '0px 0px -8% 0px' });
         reveal.forEach(el => io.observe(el));
     } else {
-        reveal.forEach(el => el.classList.add('in-view'));
+        reveal.forEach(el => { el.classList.add('in-view'); if (isCard(el)) settle(el); });
     }
     /* СТРАХОВКА: если элементы изначально уже частично в зоне видимости
        (короткая страница, быстрый загруз), а IO почему-то не сработал —
@@ -830,7 +853,10 @@ function startScrollTimeline() {
         reveal.forEach(el => {
             if (!el.classList.contains('in-view')) {
                 const r = el.getBoundingClientRect();
-                if (r.top < window.innerHeight && r.bottom > 0) el.classList.add('in-view');
+                if (r.top < window.innerHeight && r.bottom > 0) {
+                    el.classList.add('in-view');
+                    if (isCard(el)) setTimeout(() => settle(el), 2200);
+                }
             }
         });
     }, 2000);
@@ -898,6 +924,17 @@ setTimeout(() => {
     will-change: transform, opacity;
 }
 /* По умолчанию (если IO ещё не сработал) — невидимы. */
+
+/* ===== УСТОЯВШЕЕСЯ СОСТОЯНИЕ ==============================================
+   После того как keyframe-анимация входа отыграла свой 1 раз, JS вешает на
+   карточку класс .settled. С этого момента карточка стабильна: opacity:1,
+   transform:none, ни одна keyframe не висит. Hover работает поверх этого
+   состояния как обычный transform/box-shadow без побочных эффектов. */
+.auc-card.settled, .tile.settled, .adv.settled {
+    opacity: 1 !important;
+    transform: none;
+    animation: none !important;
+}
 
 /* Перевороты для разных колонок. */
 @keyframes cardFlyLeft {
@@ -989,42 +1026,50 @@ setTimeout(() => {
     to   { background-position:  120% 0; }
 }
 
-.auc-card.in-view {
+.auc-card.settled {
     transition: box-shadow .35s ease, transform .45s cubic-bezier(.2,.9,.3,1.15), border-color .35s;
 }
-.auc-card.in-view:hover {
-    /* Прерываем входную анимацию — иначе она затрёт hover-transform. */
-    animation: none !important;
-    transform: translateY(-14px) rotateX(-10deg) rotateY(10deg) scale(1.06);
+/* HOVER: только лёгкий 3D-наклон + подсветка. Никаких новых полётов
+   (входной keyframe уже отыгран и снят классом .settled). */
+.auc-card.settled:hover {
+    transform: translateY(-10px) rotateX(-6deg) rotateY(6deg) scale(1.03);
     border-color: rgba(56,189,248,.85);
     box-shadow:
-        0 36px 78px rgba(0,0,0,.6),
+        0 28px 60px rgba(0,0,0,.55),
         0 0 0 2px rgba(56,189,248,1),
-        0 0 100px rgba(56,189,248,.7),
-        inset 0 0 50px rgba(56,189,248,.22);
+        0 0 90px rgba(56,189,248,.6),
+        inset 0 0 40px rgba(56,189,248,.18);
     z-index: 3;
 }
-.auc-card.in-view:hover .ac-icon { transform: translateZ(50px) scale(1.2); }
-.auc-card.in-view:hover h4       { transform: translateZ(34px); }
-.auc-card.in-view:hover p        { transform: translateZ(16px); }
-.auc-card.in-view:hover .badge   { transform: translateZ(40px) scale(1.1); background: rgba(56,189,248,.4); }
-.auc-card.in-view .ac-icon, .auc-card.in-view h4,
-.auc-card.in-view p, .auc-card.in-view .badge { transition: transform .45s cubic-bezier(.2,.9,.3,1.15), background .35s; }
+.auc-card.settled:hover .ac-icon { transform: translateZ(28px) scale(1.12); }
+.auc-card.settled:hover h4       { transform: translateZ(20px); }
+.auc-card.settled:hover p        { transform: translateZ(10px); }
+.auc-card.settled:hover .badge   { transform: translateZ(24px) scale(1.06); background: rgba(56,189,248,.4); }
+.auc-card.settled .ac-icon, .auc-card.settled h4,
+.auc-card.settled p, .auc-card.settled .badge { transition: transform .45s cubic-bezier(.2,.9,.3,1.15), background .35s; }
 
-/* Hover на плитках ролей и преимуществах. */
-.tile.in-view { transition: box-shadow .35s ease, transform .45s cubic-bezier(.2,.9,.3,1.15), border-color .35s; }
-.tile.in-view:hover {
-    animation: none !important;
-    transform: translateY(-12px) rotateX(-7deg) rotateY(7deg) scale(1.05);
+/* Hover на плитках ролей и преимуществах — только наклон + подсветка,
+   без новых 3D-полётов. Срабатывает только в .settled (когда входная
+   анимация уже завершена), чтобы не было «пропадания» при наведении. */
+.tile.settled { transition: box-shadow .35s ease, transform .45s cubic-bezier(.2,.9,.3,1.15), border-color .35s; }
+.tile.settled:hover {
+    transform: translateY(-8px) rotateX(-5deg) rotateY(5deg) scale(1.03);
     border-color: rgba(56,189,248,.8);
-    box-shadow: 0 28px 60px rgba(0,0,0,.55), 0 0 0 2px rgba(56,189,248,.7), 0 0 80px rgba(56,189,248,.55);
+    box-shadow:
+        0 22px 50px rgba(0,0,0,.55),
+        0 0 0 2px rgba(56,189,248,.75),
+        0 0 70px rgba(56,189,248,.5),
+        inset 0 0 30px rgba(56,189,248,.12);
+    z-index: 3;
 }
-.adv.in-view { transition: box-shadow .35s ease, transform .45s cubic-bezier(.2,.9,.3,1.15), border-color .35s; }
-.adv.in-view:hover {
-    animation: none !important;
-    transform: translateY(-10px) rotateX(-6deg) scale(1.05);
+.adv.settled { transition: box-shadow .35s ease, transform .45s cubic-bezier(.2,.9,.3,1.15), border-color .35s; }
+.adv.settled:hover {
+    transform: translateY(-6px) rotateX(-4deg) scale(1.03);
     border-color: rgba(56,189,248,.65);
-    box-shadow: 0 24px 54px rgba(0,0,0,.55), 0 0 0 1.5px rgba(56,189,248,.6), 0 0 60px rgba(56,189,248,.4);
+    box-shadow:
+        0 18px 44px rgba(0,0,0,.5),
+        0 0 0 1.5px rgba(56,189,248,.6),
+        0 0 50px rgba(56,189,248,.35);
 }
 
 @media (prefers-reduced-motion: reduce) {

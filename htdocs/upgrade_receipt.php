@@ -166,6 +166,22 @@ $qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=' . urle
         .btn-print:hover{
             background:#0b5ed7;
         }
+        .btn-close{
+            display:inline-block;
+            margin-left:8px;
+            padding:10px 18px;
+            border-radius:6px;
+            border:1px solid #d1d5db;
+            background:#ffffff;
+            color:#111827;
+            font-size:13px;
+            font-weight:600;
+            cursor:pointer;
+        }
+        .btn-close:hover{
+            background:#f3f4f6;
+            border-color:#9ca3af;
+        }
         @media(max-width:768px){
             .receipt{padding:14px 12px;}
             .row{flex-direction:column;}
@@ -250,9 +266,33 @@ $qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=' . urle
     </div>
 
     <div class="btn-row">
-      <button class="btn-print" onclick="window.print();">Печать квитанции</button>
+      <button class="btn-print" onclick="window.print();" type="button">🖨️ Печать квитанции</button>
+      <button class="btn-close" onclick="receiptClose();" type="button">✕ Закрыть</button>
     </div>
   </div>
 </div>
+<script>
+/* Закрытие окна квитанции: если страница была открыта через window.open
+   (например, из модалки регистрации) — закрываем окно. Иначе — пытаемся
+   вернуться назад в истории; если истории нет, переходим на главную. */
+function receiptClose() {
+    try {
+        if (window.opener && !window.opener.closed) {
+            window.close();
+            /* Некоторые браузеры игнорируют window.close() для окон, открытых
+               пользователем; страхуемся редиректом, если окно ещё открыто. */
+            setTimeout(function(){
+                if (!window.closed) {
+                    if (history.length > 1) history.back();
+                    else window.location.href = '/';
+                }
+            }, 150);
+            return;
+        }
+    } catch (_) {}
+    if (history.length > 1) history.back();
+    else window.location.href = '/';
+}
+</script>
 </body>
 </html>
