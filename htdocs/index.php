@@ -93,11 +93,14 @@ header .header-auth-block > div:first-child > div:first-child { color: #e2e8f0 !
    (drag-to-rotate). Контент секций имеет z-index: 2, поэтому клики по тексту,
    ссылкам и кнопкам по-прежнему доходят до них, а не до канваса. */
 #hero-bg-canvas {
-    position: fixed; inset: 0; z-index: 0;
+    position: fixed; inset: 0; z-index: 1;
     width: 100vw; height: 100vh;
     pointer-events: auto;
     cursor: grab;
 }
+/* When WebGL renders nebulae + stars natively, the CSS starfield overlay
+   would just dim the planet. Hide it once Three.js is up. */
+body.webgl-on .starfield { opacity: 0; transition: opacity .8s ease; }
 #hero-bg-canvas.dragging { cursor: grabbing; }
 .starfield {
     position: fixed; inset: 0; z-index: 0; pointer-events: none;
@@ -154,8 +157,8 @@ header .header-auth-block > div:first-child > div:first-child { color: #e2e8f0 !
 @keyframes ringSpin {
     from { transform: rotate(0deg); } to { transform: rotate(360deg); }
 }
-/* Когда WebGL включён — приглушаем CSS-ядро (Three.js рисует поверх). */
-body.webgl-on .hero-orb-css { opacity: 0.55; transition: opacity .8s ease; }
+/* Когда WebGL включён — прячем CSS-ядро полностью (3D-планета занимает его место). */
+body.webgl-on .hero-orb-css { opacity: 0; transition: opacity .8s ease; pointer-events: none; }
 
 .fallback-logo { display: none; } /* больше не нужен — есть hero-orb-css */
 
@@ -170,6 +173,7 @@ section {
     font-size: clamp(40px, 7vw, 96px); font-weight: 900; line-height: 1; letter-spacing: -.02em; color: #fff;
     background: linear-gradient(180deg, #ffffff 0%, #94a3b8 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
     margin-bottom: 24px; max-width: 1100px;
+    filter: drop-shadow(0 4px 24px rgba(0,0,0,0.55));
 }
 .subtitle { font-size: clamp(15px, 1.5vw, 18px); color: #94a3b8; max-width: 640px; line-height: 1.6; margin-bottom: 38px; }
 .hero-actions { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; margin-bottom: 60px; }
@@ -495,6 +499,9 @@ function bootThree() {
 startScrollTimeline();
 
 function initThreeScene(THREE) {
+    /* Cinematic cosmos: nebulae, a gas-giant planet with a tilted Saturn-like
+       ring belt, an orbiting moon, recurring comets with glowing tails, and a
+       deep starfield. Reacts to cursor (parallax) and scroll (camera dolly). */
     const canvas = document.getElementById('hero-bg-canvas');
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -502,120 +509,250 @@ function initThreeScene(THREE) {
     renderer.setClearColor(0x000000, 0);
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 200);
-    camera.position.set(0, 0, 6);
+    const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 400);
+    camera.position.set(0, 0.6, 9);
 
-    /* --- Звёзды (фон) --- */
-    const starGeo = new THREE.BufferGeometry();
-    const STAR_COUNT = 1800;
-    const starPos = new Float32Array(STAR_COUNT * 3);
-    for (let i = 0; i < STAR_COUNT; i++) {
-        starPos[i*3+0] = (Math.random() - 0.5) * 80;
-        starPos[i*3+1] = (Math.random() - 0.5) * 80;
-        starPos[i*3+2] = (Math.random() - 0.5) * 80;
+    /* === Helpers ============================================================ */
+    /* Build a soft radial sprite (used for nebulae, comet tails, glow halos). */
+    function radialSprite(hex, alpha = 1) {
+        const c = document.createElement('canvas');
+        c.width = c.height = 256;
+        const g = c.getContext('2d');
+        const grad = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+        const r = (hex >> 16) & 255, gg = (hex >> 8) & 255, b = hex & 255;
+        grad.addColorStop(0,    `rgba(${r},${gg},${b},${alpha})`);
+        grad.addColorStop(0.4,  `rgba(${r},${gg},${b},${alpha * 0.45})`);
+        grad.addColorStop(1,    `rgba(${r},${gg},${b},0)`);
+        g.fillStyle = grad;
+        g.fillRect(0, 0, 256, 256);
+        const tex = new THREE.CanvasTexture(c);
+        tex.minFilter = THREE.LinearFilter;
+        return tex;
     }
-    starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
-    const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({
-        color: 0xffffff, size: 0.04, sizeAttenuation: true, transparent: true, opacity: 0.9
-    }));
-    scene.add(stars);
 
-    /* --- Главный 3D-объект: светящаяся сфера-«ядро» ЭРА --- */
-    const core = new THREE.Group();
-    scene.add(core);
+    /* === Starfield (3 layers, varied colour temperatures) =================== */
+    function makeStarLayer(count, spread, size, color, opacity) {
+        const geo = new THREE.BufferGeometry();
+        const pos = new Float32Array(count * 3);
+        for (let i = 0; i < count; i++) {
+            pos[i*3+0] = (Math.random() - 0.5) * spread;
+            pos[i*3+1] = (Math.random() - 0.5) * spread;
+            pos[i*3+2] = (Math.random() - 0.5) * spread;
+        }
+        geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        return new THREE.Points(geo, new THREE.PointsMaterial({
+            color, size, sizeAttenuation: true,
+            transparent: true, opacity, depthWrite: false,
+            blending: THREE.AdditiveBlending
+        }));
+    }
+    const starsFar  = makeStarLayer(2200, 220, 0.35, 0xb6c8ff, 0.85);
+    const starsMid  = makeStarLayer(900,  140, 0.55, 0xffffff, 0.95);
+    const starsNear = makeStarLayer(280,   80, 0.9,  0xfff4d1, 1.00);
+    starsFar.material.map  = radialSprite(0xffffff, 1);
+    starsMid.material.map  = radialSprite(0xffffff, 1);
+    starsNear.material.map = radialSprite(0xfff4d1, 1);
+    [starsFar, starsMid, starsNear].forEach(s => scene.add(s));
 
-    // Внутренняя яркая сфера
-    const innerSphere = new THREE.Mesh(
-        new THREE.SphereGeometry(0.55, 64, 64),
-        new THREE.MeshBasicMaterial({ color: 0x38bdf8 })
-    );
-    core.add(innerSphere);
-
-    // Каркасная сфера — wireframe со знакомой синей айдентикой
-    const wire = new THREE.Mesh(
-        new THREE.SphereGeometry(0.85, 32, 24),
-        new THREE.MeshBasicMaterial({ color: 0x38bdf8, wireframe: true, transparent: true, opacity: 0.55 })
-    );
-    core.add(wire);
-
-    // Светящееся гало (3 слоя для мягкого bloom-эффекта без постпроцессинга)
-    [{r:1.05,o:0.18},{r:1.4,o:0.10},{r:1.85,o:0.05}].forEach(({r,o}) => {
-        const halo = new THREE.Mesh(
-            new THREE.SphereGeometry(r, 32, 32),
-            new THREE.MeshBasicMaterial({ color: 0x0088cc, transparent: true, opacity: o,
-                blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.BackSide })
-        );
-        core.add(halo);
+    /* === Nebulae (soft glowing cloud sprites floating in the background) === */
+    const nebulae = [];
+    const nebulaDefs = [
+        { color: 0x3b6cff, size: 38, x: -16, y:  6, z: -28, opacity: 0.55 },
+        { color: 0x9d4edd, size: 32, x:  14, y: -4, z: -32, opacity: 0.45 },
+        { color: 0x06b6d4, size: 46, x:  -2, y: 10, z: -40, opacity: 0.35 },
+        { color: 0xff5e7e, size: 26, x:  22, y: 12, z: -36, opacity: 0.30 },
+    ];
+    nebulaDefs.forEach(def => {
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: radialSprite(def.color, 1),
+            transparent: true, opacity: def.opacity,
+            depthWrite: false, blending: THREE.AdditiveBlending,
+            color: 0xffffff
+        }));
+        sp.scale.set(def.size, def.size, 1);
+        sp.position.set(def.x, def.y, def.z);
+        scene.add(sp);
+        nebulae.push(sp);
     });
 
-    // Орбитальные кольца — намёк на «торги» / связи
-    const ring1 = new THREE.Mesh(
-        new THREE.TorusGeometry(1.5, 0.012, 16, 96),
-        new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.65 })
-    );
-    ring1.rotation.x = Math.PI/2.2;
-    core.add(ring1);
-
-    const ring2 = new THREE.Mesh(
-        new THREE.TorusGeometry(1.85, 0.008, 16, 96),
-        new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35 })
-    );
-    ring2.rotation.x = Math.PI/3;
-    ring2.rotation.y = Math.PI/4;
-    core.add(ring2);
-
-    const ring3 = new THREE.Mesh(
-        new THREE.TorusGeometry(2.2, 0.006, 16, 96),
-        new THREE.MeshBasicMaterial({ color: 0x0088cc, transparent: true, opacity: 0.45 })
-    );
-    ring3.rotation.x = Math.PI/4;
-    ring3.rotation.z = Math.PI/3;
-    core.add(ring3);
-
-    /* --- Хвост из частиц вокруг ядра --- */
-    const trailCount = 220;
-    const trailGeo = new THREE.BufferGeometry();
-    const trailPos = new Float32Array(trailCount * 3);
-    const trailRadius = new Float32Array(trailCount);
-    const trailAngle = new Float32Array(trailCount);
-    const trailSpeed = new Float32Array(trailCount);
-    for (let i = 0; i < trailCount; i++) {
-        trailRadius[i] = 1.1 + Math.random() * 2.2;
-        trailAngle[i]  = Math.random() * Math.PI * 2;
-        trailSpeed[i]  = 0.002 + Math.random() * 0.01;
-        const a = trailAngle[i], r = trailRadius[i];
-        trailPos[i*3+0] = Math.cos(a) * r;
-        trailPos[i*3+1] = (Math.random() - 0.5) * 0.6;
-        trailPos[i*3+2] = Math.sin(a) * r;
+    /* === Gas-giant planet =================================================== */
+    /* A textured sphere drawn from a procedural canvas: horizontal bands of
+       brand-cyan/teal that slowly drift sideways. */
+    function makePlanetTexture() {
+        const c = document.createElement('canvas');
+        c.width = 1024; c.height = 512;
+        const g = c.getContext('2d');
+        // Base gradient (poles darker, equator brighter)
+        const base = g.createLinearGradient(0, 0, 0, 512);
+        base.addColorStop(0.00, '#062b3f');
+        base.addColorStop(0.30, '#0b4f73');
+        base.addColorStop(0.50, '#0e7396');
+        base.addColorStop(0.70, '#0b4f73');
+        base.addColorStop(1.00, '#062b3f');
+        g.fillStyle = base;
+        g.fillRect(0, 0, 1024, 512);
+        // Bands
+        const bands = 14;
+        for (let i = 0; i < bands; i++) {
+            const y = (i / bands) * 512 + (Math.sin(i) * 6);
+            const h = 18 + Math.sin(i * 1.3) * 14;
+            g.fillStyle = `rgba(${i%2 ? 56 : 125},${i%2 ? 189 : 211},${i%2 ? 248 : 252},${0.08 + (i%3)*0.04})`;
+            g.fillRect(0, y, 1024, h);
+        }
+        // Subtle storm spot (a la Jupiter)
+        const r = g.createRadialGradient(720, 300, 4, 720, 300, 70);
+        r.addColorStop(0, 'rgba(255,200,200,0.85)');
+        r.addColorStop(1, 'rgba(255,200,200,0)');
+        g.fillStyle = r;
+        g.beginPath(); g.ellipse(720, 300, 90, 50, 0, 0, Math.PI*2); g.fill();
+        return new THREE.CanvasTexture(c);
     }
-    trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPos, 3));
-    const trail = new THREE.Points(trailGeo, new THREE.PointsMaterial({
-        color: 0x38bdf8, size: 0.06, sizeAttenuation: true, transparent: true, opacity: 0.85,
-        blending: THREE.AdditiveBlending, depthWrite: false
-    }));
-    core.add(trail);
+    const planetTex = makePlanetTexture();
+    planetTex.wrapS = THREE.RepeatWrapping;
 
-    /* --- Икосаэдр с гранями (поверх wireframe-сферы для большей «3D-сти») --- */
-    const ico = new THREE.Mesh(
-        new THREE.IcosahedronGeometry(1.2, 1),
-        new THREE.MeshBasicMaterial({ color: 0x7dd3fc, wireframe: true,
-            transparent: true, opacity: 0.35,
-            blending: THREE.AdditiveBlending, depthWrite: false })
+    const planetGroup = new THREE.Group();
+    planetGroup.position.set(4.6, -2.2, -3.5);
+    planetGroup.scale.setScalar(0.85);
+    scene.add(planetGroup);
+
+    const planet = new THREE.Mesh(
+        new THREE.SphereGeometry(1.6, 96, 64),
+        new THREE.MeshBasicMaterial({ map: planetTex })
     );
-    core.add(ico);
+    planetGroup.add(planet);
 
-    /* --- Летящий метеор: длинная линия с хвостом, пересекает сцену --- */
-    const meteorPts = [];
-    for (let i = 0; i < 16; i++) meteorPts.push(new THREE.Vector3(0, 0, 0));
-    const meteorGeo = new THREE.BufferGeometry().setFromPoints(meteorPts);
-    const meteor = new THREE.Line(meteorGeo, new THREE.LineBasicMaterial({
-        color: 0x38bdf8, transparent: true, opacity: 0.9,
+    /* Atmospheric rim glow (back-faced sphere with additive blue) */
+    [{r:1.78, o:0.28}, {r:2.05, o:0.14}, {r:2.45, o:0.07}].forEach(({r, o}) => {
+        const atm = new THREE.Mesh(
+            new THREE.SphereGeometry(r, 64, 32),
+            new THREE.MeshBasicMaterial({
+                color: 0x38bdf8, transparent: true, opacity: o,
+                blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.BackSide
+            })
+        );
+        planetGroup.add(atm);
+    });
+
+    /* Saturn-like ring belt (tilted) */
+    function makeRingTexture() {
+        const c = document.createElement('canvas');
+        c.width = 1024; c.height = 32;
+        const g = c.getContext('2d');
+        const grad = g.createLinearGradient(0, 0, 1024, 0);
+        grad.addColorStop(0.00, 'rgba(255,255,255,0)');
+        grad.addColorStop(0.10, 'rgba(125,211,252,0.55)');
+        grad.addColorStop(0.30, 'rgba(56,189,248,0.85)');
+        grad.addColorStop(0.45, 'rgba(255,255,255,0.95)');
+        grad.addColorStop(0.55, 'rgba(255,255,255,0.95)');
+        grad.addColorStop(0.70, 'rgba(56,189,248,0.85)');
+        grad.addColorStop(0.90, 'rgba(125,211,252,0.55)');
+        grad.addColorStop(1.00, 'rgba(255,255,255,0)');
+        g.fillStyle = grad; g.fillRect(0, 0, 1024, 32);
+        // Cassini-style gaps
+        g.globalCompositeOperation = 'destination-out';
+        g.fillStyle = 'rgba(0,0,0,1)';
+        [200, 480, 760, 880].forEach(x => g.fillRect(x, 0, 12, 32));
+        const tex = new THREE.CanvasTexture(c);
+        tex.minFilter = THREE.LinearFilter;
+        return tex;
+    }
+    const ringTex = makeRingTexture();
+    const ringGeo = new THREE.RingGeometry(2.0, 3.4, 128, 1);
+    /* Re-map UVs so the gradient runs across the radius (RingGeometry's default
+       UVs are not radial-friendly for stripe textures). */
+    {
+        const uv = ringGeo.attributes.uv;
+        const pos = ringGeo.attributes.position;
+        for (let i = 0; i < uv.count; i++) {
+            const x = pos.getX(i), y = pos.getY(i);
+            const r = Math.sqrt(x*x + y*y);
+            const t = (r - 2.0) / (3.4 - 2.0);
+            uv.setXY(i, t, 0.5);
+        }
+    }
+    const planetRing = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({
+        map: ringTex, side: THREE.DoubleSide,
+        transparent: true, opacity: 0.85, depthWrite: false
+    }));
+    planetRing.rotation.x = Math.PI * 0.48;
+    planetRing.rotation.z = Math.PI * 0.18;
+    planetGroup.add(planetRing);
+
+    /* Moon orbiting the planet */
+    const moonOrbit = new THREE.Group();
+    planetGroup.add(moonOrbit);
+    const moon = new THREE.Mesh(
+        new THREE.SphereGeometry(0.22, 32, 24),
+        new THREE.MeshBasicMaterial({ color: 0xe2e8f0 })
+    );
+    moon.position.set(3.2, 0.4, 0);
+    moonOrbit.add(moon);
+    /* Soft glow around the moon */
+    const moonGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: radialSprite(0xffffff, 1), color: 0xbae6fd,
+        transparent: true, opacity: 0.45, depthWrite: false,
         blending: THREE.AdditiveBlending
     }));
-    scene.add(meteor);
-    let meteorT = 0;
+    moonGlow.scale.set(1.1, 1.1, 1);
+    moon.add(moonGlow);
 
-    /* --- Реакция на курсор + drag-to-rotate --- */
+    /* === Comets (recurring streaks with bright nucleus and tapered tail) === */
+    const COMET_COUNT = 3;
+    const comets = [];
+    for (let k = 0; k < COMET_COUNT; k++) {
+        /* Nucleus: bright sprite */
+        const nucleus = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: radialSprite(0xffffff, 1), color: 0xffffff,
+            transparent: true, opacity: 1, depthWrite: false,
+            blending: THREE.AdditiveBlending
+        }));
+        nucleus.scale.set(0.55, 0.55, 1);
+        scene.add(nucleus);
+
+        /* Tail: thin line of additive points trailing behind the nucleus */
+        const TAIL = 36;
+        const tailGeo = new THREE.BufferGeometry();
+        const tailPos = new Float32Array(TAIL * 3);
+        tailGeo.setAttribute('position', new THREE.BufferAttribute(tailPos, 3));
+        const tailMat = new THREE.PointsMaterial({
+            map: radialSprite(0x7dd3fc, 1), color: 0x7dd3fc,
+            size: 0.45, sizeAttenuation: true,
+            transparent: true, opacity: 0.9, depthWrite: false,
+            blending: THREE.AdditiveBlending
+        });
+        const tail = new THREE.Points(tailGeo, tailMat);
+        scene.add(tail);
+
+        comets.push({
+            nucleus, tail, tailPos, TAIL,
+            history: [],
+            t: Math.random() * 100,            // current life-time
+            duration: 7 + Math.random() * 5,   // seconds before respawn
+            seed: Math.random() * 1000,
+        });
+    }
+
+    /* Spawn / respawn a comet with a fresh randomized trajectory. */
+    function respawnComet(c) {
+        // Origin off-screen on one side, target off-screen on the other.
+        const fromLeft = Math.random() < 0.5;
+        const sx = fromLeft ? -22 : 22;
+        const ex =  -sx;
+        const sy = (Math.random() - 0.5) * 14 + 4;
+        const ey = (Math.random() - 0.5) * 14 - 2;
+        const sz = -10 + (Math.random() - 0.5) * 6;
+        const ez = -10 + (Math.random() - 0.5) * 6;
+        c.start = new THREE.Vector3(sx, sy, sz);
+        c.end   = new THREE.Vector3(ex, ey, ez);
+        c.t = 0;
+        c.duration = 6 + Math.random() * 6;
+        c.history.length = 0;
+        c.tint = (Math.random() < 0.5) ? 0x7dd3fc : 0xffe9b5;
+        c.tail.material.color.setHex(c.tint);
+    }
+    comets.forEach(respawnComet);
+
+    /* === Drag-to-rotate / parallax on cursor =============================== */
     const mouse = { x: 0, y: 0, raw: { x: 0, y: 0 } };
     window.addEventListener('mousemove', (e) => {
         mouse.x = (e.clientX / window.innerWidth  - 0.5) * 0.5;
@@ -624,8 +761,6 @@ function initThreeScene(THREE) {
         mouse.raw.y = e.clientY;
     });
 
-    /* Drag-to-rotate: пользователь тянет фон мышью/пальцем — сцена вращается.
-       Когда отпускает — лёгкая инерция, потом возврат к авто-вращению. */
     const drag = { active: false, x: 0, y: 0, vx: 0, vy: 0, userYaw: 0, userPitch: 0 };
     const dragHint = document.getElementById('drag-hint');
     let dragHinted = false;
@@ -662,120 +797,94 @@ function initThreeScene(THREE) {
     canvas.addEventListener('touchstart', dragStart, { passive: true });
     window.addEventListener('touchmove',  dragMove,  { passive: true });
     window.addEventListener('touchend',   dragEnd);
-    /* Скрыть подсказку при первом скролле тоже. */
     window.addEventListener('scroll', hideDragHint, { passive: true, once: true });
 
     startScrollTimeline();
 
-    let scrollProgress = 0; // 0..1 от всей длины страницы
+    /* === Animation loop ===================================================== */
+    let scrollProgress = 0;
     const docHeight = () => document.documentElement.scrollHeight - window.innerHeight;
     const clock = new THREE.Clock();
-
-    /* Проектируем экранные координаты курсора в плоскость z=0 сцены — нужно,
-       чтобы частицы могли «уворачиваться» от курсора в 3D. */
-    const ndc = new THREE.Vector3();
-    const cursorWorld = new THREE.Vector3();
-    function projectCursor() {
-        ndc.set(
-            (mouse.raw.x / window.innerWidth)  * 2 - 1,
-            -(mouse.raw.y / window.innerHeight) * 2 + 1,
-            0.5
-        );
-        ndc.unproject(camera);
-        const dir = ndc.sub(camera.position).normalize();
-        const t = -camera.position.z / dir.z;
-        cursorWorld.copy(camera.position).add(dir.multiplyScalar(t));
-    }
 
     function tick() {
         const dt = clock.getDelta();
         const tt = clock.getElapsedTime();
         scrollProgress = Math.min(1, Math.max(0, window.scrollY / Math.max(1, docHeight())));
 
-        /* Звёзды плавно дрейфуют. */
-        stars.rotation.y += 0.0006;
-        stars.rotation.x += 0.0002;
+        /* Star layers drift at slightly different speeds — parallax illusion. */
+        starsFar.rotation.y  += 0.00015;
+        starsMid.rotation.y  += 0.00030;
+        starsNear.rotation.y += 0.00055;
+        starsFar.rotation.x  += 0.00008;
 
-        /* Кольца вращаются с разной скоростью. */
-        ring1.rotation.z += 0.004;
-        ring2.rotation.z -= 0.0028;
-        ring3.rotation.x += 0.0022;
+        /* Nebulae breathe softly (slow opacity oscillation). */
+        nebulae.forEach((n, i) => {
+            const o = nebulaDefs[i].opacity;
+            n.material.opacity = o * (0.85 + 0.15 * Math.sin(tt * 0.4 + i));
+        });
 
-        /* Внутренняя сфера пульсирует. Wireframe и икосаэдр живо вращаются. */
-        const pulse = 1 + Math.sin(tt * 1.2) * 0.06;
-        innerSphere.scale.setScalar(pulse);
-        wire.rotation.y += 0.003;
-        wire.rotation.x += 0.0015;
-        ico.rotation.x -= 0.004;
-        ico.rotation.y += 0.006;
-        /* Лёгкое «дыхание» икосаэдра (масштаб). */
-        ico.scale.setScalar(1 + Math.sin(tt * 0.9) * 0.05);
+        /* Planet & moon */
+        planetTex.offset.x = (planetTex.offset.x + 0.0008) % 1;
+        planet.rotation.y += 0.0015;
+        moonOrbit.rotation.y += 0.006;
+        moonOrbit.rotation.x = Math.sin(tt * 0.2) * 0.05;
+        planetRing.rotation.z += 0.0006;
 
-        /* Орбитальные частицы — отклоняются от курсора (репульсия). */
-        projectCursor();
-        const arr = trailGeo.attributes.position.array;
-        for (let i = 0; i < trailCount; i++) {
-            trailAngle[i] += trailSpeed[i];
-            const a = trailAngle[i], r = trailRadius[i];
-            let px = Math.cos(a) * r;
-            let pz = Math.sin(a) * r;
-            let py = (i % 2 === 0 ? 0.2 : -0.2) * Math.sin(tt * 0.6 + i);
-            const dx = px - cursorWorld.x;
-            const dy = py - cursorWorld.y;
-            const dz = pz - cursorWorld.z;
-            const dist2 = dx*dx + dy*dy + dz*dz;
-            if (dist2 < 1.6) {
-                const k = (1 - dist2 / 1.6) * 0.6;
-                px += dx * k; py += dy * k; pz += dz * k;
-            }
-            arr[i*3+0] = px;
-            arr[i*3+1] = py;
-            arr[i*3+2] = pz;
-        }
-        trailGeo.attributes.position.needsUpdate = true;
-
-        /* Метеор: летит по спирали, оставляя хвост из 16 точек. */
-        meteorT += 0.012;
-        const mArr = meteorGeo.attributes.position.array;
-        const mLoop = (meteorT % 6.28) - 3.14; // [-π..π]
-        for (let i = 0; i < 16; i++) {
-            const lag = i * 0.06;
-            const a = meteorT - lag;
-            const r = 5 + Math.sin(a * 0.7) * 1.8;
-            mArr[i*3+0] = Math.cos(a) * r;
-            mArr[i*3+1] = Math.sin(a * 0.9) * 2.4 + Math.sin(a * 0.4) * 1.2;
-            mArr[i*3+2] = Math.sin(a) * r * 0.6 - 2;
-        }
-        meteorGeo.attributes.position.needsUpdate = true;
-        meteor.material.opacity = 0.45 + 0.45 * (Math.sin(meteorT * 1.2) * 0.5 + 0.5);
-
-        /* Скролл-анимация: ядро уходит вверх и в глубину, потом возвращается. */
-        const t = scrollProgress;
-        const heroFactor = Math.max(0, 1 - t * 1.6);
-        const finalFactor = Math.max(0, t * 1.6 - 0.6);
-        core.position.x = mouse.x * 1.2 * heroFactor;
-        core.position.y = -mouse.y * 0.8 * heroFactor + Math.sin(t * Math.PI) * -1.2 + finalFactor * 0.4;
-        core.position.z = -t * 4 + finalFactor * 4.5;
-        core.scale.setScalar(0.9 + heroFactor * 0.4 + finalFactor * 0.7);
-
-        /* Авто-вращение по Y + пользовательский yaw/pitch (drag-to-rotate). */
+        /* Drag-driven yaw/pitch on the planet group + auto-drift. */
         if (!drag.active) {
             drag.userYaw   += drag.vx * 0.92;
             drag.userPitch += drag.vy * 0.92;
             drag.vx *= 0.94; drag.vy *= 0.94;
-            /* Плавный возврат пользовательского сдвига к нулю — но очень
-               медленный, чтобы пользователь чувствовал, что «он крутил». */
-            drag.userYaw   *= 0.995;
-            drag.userPitch *= 0.995;
+            drag.userYaw   *= 0.998;
+            drag.userPitch *= 0.998;
         }
-        core.rotation.y = t * Math.PI * 0.6 + drag.userYaw + tt * 0.05;
-        core.rotation.x = drag.userPitch;
+        planetGroup.rotation.y = drag.userYaw + tt * 0.04;
+        planetGroup.rotation.x = drag.userPitch * 0.6;
 
-        /* Камера: parallax от курсора + лёгкая «дыхалка» по скроллу. */
-        camera.position.x = mouse.x * 0.6;
-        camera.position.y = -mouse.y * 0.45;
-        camera.position.z = 6 - Math.min(t, 0.5) * 1.5;
-        camera.lookAt(0, 0, 0);
+        /* Scroll choreography: planet drifts up & to the side as user scrolls,
+           camera dollies in slightly. */
+        const sp = scrollProgress;
+        planetGroup.position.x = 4.6 - sp * 1.6 + mouse.x * 0.6;
+        planetGroup.position.y = -2.2 + sp * 1.8 - mouse.y * 0.4;
+        planetGroup.position.z = -3.5 - sp * 4;
+
+        /* Comets: advance along their parametric path; respawn after duration. */
+        for (let k = 0; k < comets.length; k++) {
+            const c = comets[k];
+            c.t += dt;
+            if (c.t > c.duration) { respawnComet(c); }
+
+            const u = c.t / c.duration;            // 0..1
+            // Slight curve via sine perpendicular to the line.
+            const lin = new THREE.Vector3().lerpVectors(c.start, c.end, u);
+            const curve = Math.sin(u * Math.PI) * 1.8;
+            lin.y += curve * 0.6;
+            lin.z += curve * 0.4;
+            c.nucleus.position.copy(lin);
+
+            // Pulse / fade nucleus near edges of trajectory.
+            const fade = Math.sin(u * Math.PI);
+            c.nucleus.material.opacity = fade;
+            c.nucleus.scale.setScalar(0.4 + fade * 0.4);
+
+            // Update tail history.
+            c.history.unshift(lin.clone());
+            if (c.history.length > c.TAIL) c.history.length = c.TAIL;
+            for (let i = 0; i < c.TAIL; i++) {
+                const h = c.history[i] || lin;
+                c.tailPos[i*3+0] = h.x;
+                c.tailPos[i*3+1] = h.y;
+                c.tailPos[i*3+2] = h.z;
+            }
+            c.tail.geometry.attributes.position.needsUpdate = true;
+            c.tail.material.opacity = 0.9 * fade;
+        }
+
+        /* Camera: subtle parallax + scroll-based forward push. */
+        camera.position.x = mouse.x * 0.8;
+        camera.position.y = 0.6 - mouse.y * 0.5 + sp * 0.4;
+        camera.position.z = 9 - Math.min(sp, 0.6) * 2.0;
+        camera.lookAt(0.4, -0.3, -2);
 
         renderer.render(scene, camera);
         requestAnimationFrame(tick);
