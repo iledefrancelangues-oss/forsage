@@ -16,6 +16,15 @@
 ob_start();
 if (session_status() === PHP_SESSION_NONE) session_start();
 
+if (!isset($_SESSION['lang'])) {
+    $accept_lang = $_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? 'ru';
+    $_SESSION['lang'] = (substr($accept_lang, 0, 2) === 'ru') ? 'ru' : 'en';
+}
+if (isset($_GET['lang'])) {
+    $_SESSION['lang'] = ($_GET['lang'] === 'en') ? 'en' : 'ru';
+}
+$lang = $_SESSION['lang'];
+
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/db_schema_extra.php';
 
@@ -96,7 +105,7 @@ if ($user_id > 0 && !$is_owner) {
     $part_status = $stmt->fetchColumn() ?: null;
 }
 
-/* Победитель — только после окончания торгов. */
+/* <?= $lang === 'en' ? 'Winner' : 'Победитель' ?> — только после окончания торгов. */
 $winner_name = null;
 $winner_price = null;
 if ($is_over && (int)$lot['last_bid_user'] > 0) {
@@ -151,59 +160,59 @@ include 'header.php';
 </style>
 
 <main class="closed-wrap">
-    <a href="reestr.php" class="cl-back">← К реестру</a>
+    <a href="reestr.php" class="cl-back"><?= $lang === 'en' ? '← To registry' : '← К реестру' ?></a>
     <div class="cl-card">
         <div class="cl-header">
             <span class="cl-badge">🔒 Закрытый аукцион</span>
             <div class="cl-title"><?= htmlspecialchars($lot['title'], ENT_QUOTES, 'UTF-8') ?></div>
-            <div class="cl-sub">Лот №<?= (int)$lot['id'] ?> · Только лучшая ставка видна в процессе</div>
+            <div class="cl-sub"><?= $lang === 'en' ? 'Lot №' : 'Лот №' ?><?= (int)$lot['id'] ?> <?= $lang === 'en' ? '· Only the best bid is visible during the auction' : '· Только лучшая ставка видна в процессе' ?></div>
         </div>
         <div class="cl-body">
-            <div class="cl-best-label">Лучшее предложение</div>
+            <div class="cl-best-label"><?= $lang === 'en' ? 'Best bid' : 'Лучшее предложение' ?></div>
             <div class="cl-best" id="clBest"><?= number_format($price, 0, '.', ' ') ?> ₽</div>
 
-            <div class="cl-timer-label">До окончания торгов</div>
+            <div class="cl-timer-label"><?= $lang === 'en' ? 'Time left' : 'До окончания торгов' ?></div>
             <div class="cl-timer" id="clTimer">--:--:--</div>
             <div style="text-align:center;font-size:11px;color:#64748b;">
-                Окончание: <?= date('d.m.Y H:i', $end_ts) ?> · Таймер фиксированный, не продлевается
+                <?= $lang === 'en' ? 'Ends:' : 'Окончание:' ?> <?= date('d.m.Y H:i', $end_ts) ?> <?= $lang === 'en' ? '· Fixed timer; not extended' : '· Таймер фиксированный, не продлевается' ?>
             </div>
 
             <div style="height:14px;"></div>
             <div class="cl-row">
-                <span class="lbl">Стартовая цена</span>
+                <span class="lbl"><?= $lang === 'en' ? 'Starting price' : 'Стартовая цена' ?></span>
                 <span class="val"><?= number_format((float)$lot['start_price'], 0, '.', ' ') ?> ₽</span>
             </div>
             <div class="cl-row">
-                <span class="lbl">Шаг повышения</span>
+                <span class="lbl"><?= $lang === 'en' ? 'Bid step' : 'Шаг повышения' ?></span>
                 <span class="val"><?= number_format($step, 0, '.', ' ') ?> ₽</span>
             </div>
             <div class="cl-row">
-                <span class="lbl">Допущено участников</span>
+                <span class="lbl"><?= $lang === 'en' ? 'Admitted bidders' : 'Допущено участников' ?></span>
                 <span class="val" id="approvedCnt">…</span>
             </div>
 
             <?php if ($is_over): ?>
                 <div class="cl-finished">
-                    <span style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#a78bfa;">Аукцион завершён</span>
+                    <span style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#a78bfa;"><?= $lang === 'en' ? 'Auction ended' : 'Аукцион завершён' ?></span>
                     <?php if ($winner_name): ?>
                         <b><?= number_format((float)$winner_price, 0, '.', ' ') ?> ₽</b>
-                        <div style="color:#cbd5e1;">Победитель: <?= htmlspecialchars($winner_name) ?></div>
+                        <div style="color:#cbd5e1;"><?= $lang === 'en' ? 'Winner:' : 'Победитель:' ?> <?= htmlspecialchars($winner_name) ?></div>
                     <?php else: ?>
-                        <b style="font-size:18px;color:#cbd5e1;">Ставок не было</b>
+                        <b style="font-size:18px;color:#cbd5e1;"><?= $lang === 'en' ? 'No bids were placed' : 'Ставок не было' ?></b>
                     <?php endif; ?>
                 </div>
             <?php elseif ($is_owner): ?>
                 <div class="cl-info">
-                    Вы являетесь организатором. <a href="admin.php?tab=closed_admit&lot_id=<?= (int)$lot['id'] ?>" style="color:#a78bfa;">Управлять допуском участников</a>.
+                    <?= $lang === 'en' ? 'You are the organizer.' : 'Вы являетесь организатором.' ?> <a href="admin.php?tab=closed_admit&lot_id=<?= (int)$lot['id'] ?>" style="color:#a78bfa;"><?= $lang === 'en' ? 'Manage participant admission' : 'Управлять допуском участников' ?></a>.
                     В процессе торгов имена и ставки участников вам не видны — только текущая лучшая цена.
                 </div>
             <?php elseif ($user_id <= 0): ?>
-                <div class="cl-info">Чтобы подать заявку на участие, <a href="login.php" style="color:#a78bfa;">войдите в аккаунт</a>.</div>
+                <div class="cl-info"><?= $lang === 'en' ? 'To apply for participation,' : 'Чтобы подать заявку на участие,' ?> <a href="login.php" style="color:#a78bfa;"><?= $lang === 'en' ? 'sign in' : 'войдите в аккаунт' ?></a>.</div>
             <?php elseif ($part_status === null): ?>
                 <form id="applyForm" class="cl-form">
-                    <h3 style="margin:0 0 10px;font-size:16px;color:#fff;">Подать заявку на участие</h3>
+                    <h3 style="margin:0 0 10px;font-size:16px;color:#fff;"><?= $lang === 'en' ? 'Apply for participation' : 'Подать заявку на участие' ?></h3>
                     <input type="hidden" name="lot_id" value="<?= (int)$lot['id'] ?>">
-                    <label>Информация о вас (необязательно)</label>
+                    <label><?= $lang === 'en' ? 'About you (optional)' : 'Информация о вас (необязательно)' ?></label>
                     <textarea name="application_text" rows="3" placeholder="Краткая информация о компании, опыт работы, контакты и т. п."></textarea>
                     <div class="hint">Заявку рассмотрит организатор/администратор. После одобрения вы сможете подавать ставки.</div>
                     <button type="submit" id="applySubmit">Подать заявку</button>
@@ -219,11 +228,11 @@ include 'header.php';
                 </div>
             <?php elseif ($part_status === 'approved'): ?>
                 <form id="bidForm" class="cl-form">
-                    <h3 style="margin:0 0 10px;font-size:16px;color:#fff;">Сделать ставку</h3>
+                    <h3 style="margin:0 0 10px;font-size:16px;color:#fff;"><?= $lang === 'en' ? 'Place bid' : 'Сделать ставку' ?></h3>
                     <input type="hidden" name="lot_id" value="<?= (int)$lot['id'] ?>">
-                    <label>Ваша ставка (₽), не менее <span id="hintMin"><?= number_format($min_bid, 0, '.', ' ') ?></span> ₽</label>
+                    <label><?= $lang === 'en' ? 'Your bid (₽), at least' : 'Ваша ставка (₽), не менее' ?> <span id="hintMin"><?= number_format($min_bid, 0, '.', ' ') ?></span> ₽</label>
                     <input type="number" name="bid_amount" id="clAmount" step="1" min="<?= $min_bid ?>" value="<?= $min_bid ?>" required>
-                    <div class="hint">Вы допущены к торгам. Можно перебивать в том числе свою же ставку.</div>
+                    <div class="hint"><?= $lang === 'en' ? 'You have been admitted. You may outbid your own bid.' : 'Вы допущены к торгам. Можно перебивать в том числе свою же ставку.' ?></div>
                     <button type="submit" id="clBidBtn">Сделать ставку</button>
                     <div id="clMsg" class="cl-msg"></div>
                 </form>
@@ -231,7 +240,7 @@ include 'header.php';
 
             <?php if (!empty($lot['description'])): ?>
             <div style="margin-top:22px;padding-top:16px;border-top:1px solid #334155;">
-                <div style="font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Описание</div>
+                <div style="font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;"><?= $lang === 'en' ? 'Description' : 'Описание' ?></div>
                 <div style="color:#e2e8f0;font-size:14px;line-height:1.6;white-space:pre-line;"><?= htmlspecialchars($lot['description']) ?></div>
             </div>
             <?php endif; ?>
