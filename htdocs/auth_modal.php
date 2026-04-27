@@ -489,8 +489,8 @@ if (!isset($lang)) $lang = $_SESSION['lang'] ?? 'ru';
                          QR-кодом и кнопкой «Закрыть»). -->
                     <div id="auth-payment-block" class="auth-payment-block">
                         <div style="font-weight:600; margin-bottom:8px; color:#cbd5e1;">
-                            <?= $lang === 'en' ? 'Payment for «Responsible»' : 'Оплата статуса «Ответственный»' ?>
-                            <span style="float:right; color:#60a5fa; font-weight:700;">8 000 ₽</span>
+                            <span id="auth-pay-title"><?= $lang === 'en' ? 'Payment for «Responsible»' : 'Оплата статуса «Ответственный»' ?></span>
+                            <span id="auth-pay-total" style="float:right; color:#60a5fa; font-weight:700;">8 000 ₽</span>
                         </div>
 
                         <!-- Переключатель способов оплаты -->
@@ -554,7 +554,7 @@ if (!isset($lang)) $lang = $_SESSION['lang'] ?? 'ru';
                         <div class="auth-pay-details-mini">
                             <div><b><?= $lang === 'en' ? 'Recipient:' : 'Получатель:' ?></b> ООО «Форсаж» · ИНН 7728282160</div>
                             <div><b><?= $lang === 'en' ? 'Account:' : 'Счёт:' ?></b> 40702810101500033019, ООО Банк Точка, БИК 044525104</div>
-                            <div><b><?= $lang === 'en' ? 'Amount:' : 'Сумма:' ?></b> 8 000 ₽ (<?= $lang === 'en' ? 'incl. VAT 22%' : 'в т.ч. НДС 22%' ?>)</div>
+                            <div><b><?= $lang === 'en' ? 'Amount:' : 'Сумма:' ?></b> <span id="auth-pay-amount-mini">8 000 ₽</span> (<?= $lang === 'en' ? 'incl. VAT 22%' : 'в т.ч. НДС 22%' ?>)</div>
                         </div>
                     </div>
 
@@ -617,7 +617,7 @@ if (!isset($lang)) $lang = $_SESSION['lang'] ?? 'ru';
                 </div>
 
                 <label class="auth-checkbox-row">
-                    <input type="checkbox" id="auth-r-express">
+                    <input type="checkbox" id="auth-r-express" onchange="authRefreshPayment()">
                     <span><?= $lang === 'en' ? 'Express registration (24 hours)' : 'Экспресс-регистрация за 24 часа' ?></span>
                 </label>
 
@@ -749,12 +749,10 @@ function authSelectStatus(value) {
         var radio = c.querySelector('input[type="radio"]');
         if (radio) radio.checked = isMatch;
     });
-    var pay  = document.getElementById('auth-payment-block');
     var info = document.getElementById('auth-organizer-info');
-    if (pay)  pay.classList.toggle('visible',  value === 'responsible');
     if (info) info.classList.toggle('visible', value === 'organizer');
-    /* По умолчанию активна вкладка QR — пользователь сразу видит код. */
-    if (value === 'responsible') authSelectPayMethod('qr');
+    authRefreshPayment();
+    authSelectPayMethod('qr');
 }
 
 /* Переключение между QR-кодом и квитанцией внутри модалки регистрации. */
@@ -775,14 +773,82 @@ function authSelectPayMethod(method) {
    передаются через query-string — upgrade_receipt.php их читает и
    рендерит квитанцию даже без авторизации. */
 function authOpenReceipt() {
-    var url = 'upgrade_receipt.php?status='
-        + encodeURIComponent('Ответственный')
-        + '&sum=8000&close=1';
+    var c = authComputeTotal();
+    if (c.total <= 0) return;
+    var isEN2 = (document.documentElement.lang || '').toLowerCase().startsWith('en');
+    var statusLabel = isEN2
+        ? (c.status === 'responsible' ? 'Responsible'
+           : (c.status === 'organizer' ? 'Organizer' : 'Respected'))
+        : (c.status === 'responsible' ? 'Ответственный'
+           : (c.status === 'organizer' ? 'Организатор' : 'Уважаемый'));
+    if (c.express) statusLabel += isEN2 ? ' (Express)' : ' (экспресс)';
+    var url = 'upgrade_receipt.php?status=' + encodeURIComponent(statusLabel)
+            + '&sum=' + c.total + '&express=' + (c.express ? '1' : '0') + '&close=1';
     var w = window.open(url, '_blank', 'noopener,width=900,height=820');
     if (!w) {
-        /* Поп-апы заблокированы — открываем в текущей вкладке. */
         window.location.href = url;
     }
+}
+
+/* Живое обновление суммы/QR в модалке: базовая цена + экспресс 7000₽. */
+function authComputeTotal() {
+    var statusEl = document.querySelector('input[name="auth-r-utype"]:checked');
+    var status   = statusEl ? statusEl.value : 'respected';
+    var expressEl = document.getElementById('auth-r-express');
+    var express  = !!(expressEl && expressEl.checked);
+    var base     = (status === 'responsible') ? 8000 : 0;
+    var fee      = express ? 7000 : 0;
+    return { status: status, base: base, fee: fee, express: express, total: base + fee };
+}
+
+function authFormatRub(n) {
+    try {
+        return n.toLocaleString('ru-RU') + ' ₽';
+    } catch (e) {
+        return n + ' ₽';
+    }
+}
+
+function authBuildQrUrl(total, status, express) {
+    var sumKopecks = total * 100;
+    var statusName = status === 'responsible' ? 'Otvetstvenny'
+                   : (status === 'organizer' ? 'Organizator' : 'Uvazhaemy');
+    var purpose = 'Registracia status ' + statusName + (express ? ' express' : '') + ' ' + total + ' RUB';
+    var payload = 'ST00012'
+        + '|Name=ООО Форсаж'
+        + '|PersonalAcc=40702810101500033019'
+        + '|BankName=ООО Банк Точка'
+        + '|BIC=044525104'
+        + '|CorrespAcc=30101810745374525104'
+        + '|PayeeINN=7728282160'
+        + '|KPP=773001001'
+        + '|Sum=' + sumKopecks
+        + '|Purpose=' + purpose;
+    return 'https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=' + encodeURIComponent(payload);
+}
+
+function authRefreshPayment() {
+    var c = authComputeTotal();
+    var pay = document.getElementById('auth-payment-block');
+    if (pay) pay.classList.toggle('visible', c.total > 0);
+    if (c.total <= 0) return;
+    var titleEl = document.getElementById('auth-pay-title');
+    if (titleEl) {
+        var isEN = (document.documentElement.lang || '').toLowerCase().startsWith('en');
+        if (c.status === 'responsible') {
+            titleEl.textContent = isEN
+                ? ('Payment for «Responsible»' + (c.express ? ' (Express)' : ''))
+                : ('Оплата статуса «Ответственный»' + (c.express ? ' (экспресс)' : ''));
+        } else {
+            titleEl.textContent = isEN ? 'Express registration fee' : 'Оплата экспресс-регистрации';
+        }
+    }
+    var totalEl = document.getElementById('auth-pay-total');
+    if (totalEl) totalEl.textContent = authFormatRub(c.total);
+    var amtMini = document.getElementById('auth-pay-amount-mini');
+    if (amtMini) amtMini.textContent = authFormatRub(c.total);
+    var qrEl = document.getElementById('auth-pay-qr-preview');
+    if (qrEl) qrEl.src = authBuildQrUrl(c.total, c.status, c.express);
 }
 
 function authDoRegister() {

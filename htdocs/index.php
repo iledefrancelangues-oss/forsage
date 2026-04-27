@@ -305,122 +305,121 @@ body > footer img[alt="Форсаж"] {
 </div>
 
 <section class="act-1" id="act1">
-    <div class="eyebrow" data-anim="eyebrow">Электронная торговая площадка нового поколения</div>
-    <h1 class="title-mega" data-anim="title">Торгуйте<br>прозрачно и быстро</h1>
+    <div class="eyebrow" data-anim="eyebrow"><?= $lang === 'en' ? 'Next-generation electronic trading platform' : 'Электронная торговая площадка нового поколения' ?></div>
+    <h1 class="title-mega" data-anim="title"><?= $lang === 'en' ? "Trade<br>transparently and fast" : "Торгуйте<br>прозрачно и быстро" ?></h1>
     <p class="subtitle" data-anim="subtitle">
-        Открытые, закрытые, скандинавские аукционы, запрос предложений и котировок —
-        в одном кабинете, под защитой 152-ФЗ. Регистрация за пять минут, первая ставка — за минуту.
+        <?= $lang === 'en' ? 'Open, closed and Scandinavian auctions, requests for proposals and quotations — all in a single workspace, fully compliant with Federal Law 152-FZ on personal data. Five-minute sign-up, first bid in under a minute.' : 'Открытые, закрытые, скандинавские аукционы, запрос предложений и котировок — в одном кабинете, под защитой 152-ФЗ. Регистрация за пять минут, первая ставка — за минуту.' ?>
     </p>
     <div class="hero-actions" data-anim="cta">
-        <button class="btn-cta" onclick="openAuth && openAuth('register')">Зарегистрироваться</button>
-        <a class="btn-cta outline" href="/reestr.php">Смотреть торги →</a>
+        <button class="btn-cta" onclick="openAuth && openAuth('register')"><?= $lang === 'en' ? 'Sign up' : 'Зарегистрироваться' ?></button>
+        <a class="btn-cta outline" href="/reestr.php"><?= $lang === 'en' ? 'Browse auctions →' : 'Смотреть торги →' ?></a>
     </div>
-    <div class="scroll-hint"><div class="mouse"></div>Скролл</div>
+    <div class="scroll-hint"><div class="mouse"></div><?= $lang === 'en' ? 'Scroll' : 'Скролл' ?></div>
 </section>
 
 <section class="act-2" id="act2">
     <div class="section-head">
-        <div class="section-eyebrow">Кто на площадке</div>
-        <h2 class="section-title">Три роли — один кабинет</h2>
+        <div class="section-eyebrow"><?= $lang === 'en' ? 'Who uses the platform' : 'Кто на площадке' ?></div>
+        <h2 class="section-title"><?= $lang === 'en' ? 'Three roles, one workspace' : 'Три роли — один кабинет' ?></h2>
     </div>
     <div class="tiles-grid">
         <a class="tile" href="/reestr.php" data-tile>
             <div class="tile-icon">🎯</div>
-            <h3>Участник</h3>
-            <p>Ищите подходящие лоты, подавайте заявки, делайте ставки. Доступны все шесть типов торгов и реестр в реальном времени.</p>
-            <span class="tile-cta">К реестру →</span>
+            <h3><?= $lang === 'en' ? 'Bidder' : 'Участник' ?></h3>
+            <p><?= $lang === 'en' ? 'Find the lots you need, submit applications and place bids. All six auction formats and a real-time lot registry are at your disposal.' : 'Ищите подходящие лоты, подавайте заявки, делайте ставки. Доступны все шесть типов торгов и реестр в реальном времени.' ?></p>
+            <span class="tile-cta"><?= $lang === 'en' ? 'Open the registry →' : 'К реестру →' ?></span>
         </a>
         <a class="tile" href="#" onclick="openAuth && openAuth('register'); return false;" data-tile>
             <div class="tile-icon">⚡</div>
-            <h3>Регистрация</h3>
-            <p>Уважаемый — бесплатно. Ответственный — 8 000 ₽. Организатор — бесплатно на 12 месяцев. Аккредитация в системе за 24 часа.</p>
-            <span class="tile-cta">Создать аккаунт →</span>
+            <h3><?= $lang === 'en' ? 'Registration' : 'Регистрация' ?></h3>
+            <p><?= $lang === 'en' ? 'Respected — free. Responsible — RUB 8,000. Organizer — free for 12 months. Full accreditation within 24 hours.' : 'Уважаемый — бесплатно. Ответственный — 8 000 ₽. Организатор — бесплатно на 12 месяцев. Аккредитация в системе за 24 часа.' ?></p>
+            <span class="tile-cta"><?= $lang === 'en' ? 'Create an account →' : 'Создать аккаунт →' ?></span>
         </a>
         <a class="tile" href="/add_lot.php" data-tile>
             <div class="tile-icon">📊</div>
-            <h3>Организатор</h3>
-            <p>Размещайте лоты, выбирайте формат торгов, управляйте допуском участников и итогами. Полный аудит-трейл по каждой сделке.</p>
-            <span class="tile-cta">Создать лот →</span>
+            <h3><?= $lang === 'en' ? 'Organizer' : 'Организатор' ?></h3>
+            <p><?= $lang === 'en' ? 'Publish lots, pick the auction format, control bidder admission and finalise the outcome. A complete audit trail is kept for every deal.' : 'Размещайте лоты, выбирайте формат торгов, управляйте допуском участников и итогами. Полный аудит-трейл по каждой сделке.' ?></p>
+            <span class="tile-cta"><?= $lang === 'en' ? 'Create a lot →' : 'Создать лот →' ?></span>
         </a>
     </div>
 </section>
 
 <section class="act-3" id="act3">
     <div class="section-head">
-        <div class="section-eyebrow">Шесть форматов</div>
-        <h2 class="section-title">Любая логика торгов</h2>
+        <div class="section-eyebrow"><?= $lang === 'en' ? 'Six formats' : 'Шесть форматов' ?></div>
+        <h2 class="section-title"><?= $lang === 'en' ? 'Any bidding logic you need' : 'Любая логика торгов' ?></h2>
     </div>
     <div class="h-scroll-track">
         <div class="auc-card" style="--c1:#0f172a;--c2:#1e3a8a;">
             <div class="ac-icon">🔨</div>
-            <h4>Открытый аукцион</h4>
-            <p>Классика на повышение. Все ставки видны участникам, побеждает наибольшая цена.</p>
-            <div class="badge">Прозрачно</div>
+            <h4><?= $lang === 'en' ? 'Open auction' : 'Открытый аукцион' ?></h4>
+            <p><?= $lang === 'en' ? 'A classic ascending-price auction. Every bid is visible to all participants and the highest price wins.' : 'Классика на повышение. Все ставки видны участникам, побеждает наибольшая цена.' ?></p>
+            <div class="badge"><?= $lang === 'en' ? 'Transparent' : 'Прозрачно' ?></div>
         </div>
         <div class="auc-card" style="--c1:#1e1b4b;--c2:#7c2d12;">
             <div class="ac-icon">🔥</div>
-            <h4>Скандинавский</h4>
-            <p>Каждая ставка стоит фиксированный тариф и продлевает таймер. Драйв и доход для организатора.</p>
-            <div class="badge">Драйв</div>
+            <h4><?= $lang === 'en' ? 'Penny (Scandinavian)' : 'Скандинавский' ?></h4>
+            <p><?= $lang === 'en' ? 'Every bid carries a fixed fee and extends the timer. High excitement for bidders, steady revenue for the organizer.' : 'Каждая ставка стоит фиксированный тариф и продлевает таймер. Драйв и доход для организатора.' ?></p>
+            <div class="badge"><?= $lang === 'en' ? 'High-paced' : 'Драйв' ?></div>
         </div>
         <div class="auc-card" style="--c1:#052e16;--c2:#14532d;">
             <div class="ac-icon">📉</div>
-            <h4>На понижение</h4>
-            <p>Цена снижается с шагом. Кто первый нажмёт «купить» — тот и забирает лот.</p>
-            <div class="badge">Скорость</div>
+            <h4><?= $lang === 'en' ? 'Reverse (Dutch)' : 'На понижение' ?></h4>
+            <p><?= $lang === 'en' ? 'The price drops in fixed steps. Whoever clicks “Buy now” first takes the lot.' : 'Цена снижается с шагом. Кто первый нажмёт «купить» — тот и забирает лот.' ?></p>
+            <div class="badge"><?= $lang === 'en' ? 'Fast' : 'Скорость' ?></div>
         </div>
         <div class="auc-card" style="--c1:#1e293b;--c2:#475569;">
             <div class="ac-icon">🔒</div>
-            <h4>Закрытый</h4>
-            <p>Только допущенные участники видят торги и ставят. Имена скрыты, выигрыш — только цена.</p>
-            <div class="badge">Конфиденциально</div>
+            <h4><?= $lang === 'en' ? 'Closed' : 'Закрытый' ?></h4>
+            <p><?= $lang === 'en' ? 'Only pre-approved bidders can see the auction and place bids. Identities stay hidden — only the winning price is disclosed.' : 'Только допущенные участники видят торги и ставят. Имена скрыты, выигрыш — только цена.' ?></p>
+            <div class="badge"><?= $lang === 'en' ? 'Confidential' : 'Конфиденциально' ?></div>
         </div>
         <div class="auc-card" style="--c1:#0c4a6e;--c2:#0e7490;">
             <div class="ac-icon">📨</div>
-            <h4>Запрос предложений</h4>
-            <p>Участники подают единое предложение, видят его в любой момент и могут поднять цену.</p>
-            <div class="badge">Гибко</div>
+            <h4><?= $lang === 'en' ? 'Request for proposals' : 'Запрос предложений' ?></h4>
+            <p><?= $lang === 'en' ? 'Each bidder submits a single offer, can review it at any time and is free to raise the price.' : 'Участники подают единое предложение, видят его в любой момент и могут поднять цену.' ?></p>
+            <div class="badge"><?= $lang === 'en' ? 'Flexible' : 'Гибко' ?></div>
         </div>
         <div class="auc-card" style="--c1:#581c87;--c2:#a21caf;">
             <div class="ac-icon">📑</div>
-            <h4>Запрос котировок</h4>
-            <p>Зеркально к запросу предложений: побеждает минимальная цена. Удобно для закупок.</p>
-            <div class="badge">Закупки</div>
+            <h4><?= $lang === 'en' ? 'Request for quotations' : 'Запрос котировок' ?></h4>
+            <p><?= $lang === 'en' ? 'The mirror image of an RFP — the lowest price wins. Ideal for procurement.' : 'Зеркально к запросу предложений: побеждает минимальная цена. Удобно для закупок.' ?></p>
+            <div class="badge"><?= $lang === 'en' ? 'Procurement' : 'Закупки' ?></div>
         </div>
     </div>
 </section>
 
 <section class="act-4" id="act4">
     <div class="section-head">
-        <div class="section-eyebrow">Почему ЭРА</div>
-        <h2 class="section-title">Тонкости, которые меняют всё</h2>
+        <div class="section-eyebrow"><?= $lang === 'en' ? 'Why ERA' : 'Почему ЭРА' ?></div>
+        <h2 class="section-title"><?= $lang === 'en' ? 'The details that change everything' : 'Тонкости, которые меняют всё' ?></h2>
     </div>
     <div class="adv-grid">
         <div class="adv">
             <div class="adv-num">152-ФЗ</div>
-            <h4>Защита персональных данных</h4>
-            <p>Журнал согласий с IP, временем и User-Agent. Политики и реквизиты оператора публичны.</p>
+            <h4><?= $lang === 'en' ? 'Personal data protection' : 'Защита персональных данных' ?></h4>
+            <p><?= $lang === 'en' ? 'Every consent is logged with IP, timestamp and User-Agent. The operator’s policies and details are publicly available.' : 'Журнал согласий с IP, временем и User-Agent. Политики и реквизиты оператора публичны.' ?></p>
         </div>
         <div class="adv">
             <div class="adv-num">&lt;1c</div>
-            <h4>Реальное время</h4>
-            <p>Ставки и предложения видны мгновенно. Никаких F5 — лента обновляется сама.</p>
+            <h4><?= $lang === 'en' ? 'Real-time' : 'Реальное время' ?></h4>
+            <p><?= $lang === 'en' ? 'Bids and offers appear instantly. No need to refresh — the feed updates on its own.' : 'Ставки и предложения видны мгновенно. Никаких F5 — лента обновляется сама.' ?></p>
         </div>
         <div class="adv">
             <div class="adv-num">QR</div>
-            <h4>СБП и квитанции</h4>
-            <p>Оплата статусов и отчётов по QR-коду или печатной квитанции с реквизитами оператора.</p>
+            <h4><?= $lang === 'en' ? 'SBP & receipts' : 'СБП и квитанции' ?></h4>
+            <p><?= $lang === 'en' ? 'Pay for statuses and reports via QR-code (Russia’s SBP) or a printable bank receipt with the operator’s full details.' : 'Оплата статусов и отчётов по QR-коду или печатной квитанции с реквизитами оператора.' ?></p>
         </div>
     </div>
 </section>
 
 <section class="act-5">
-    <div class="section-eyebrow" style="color:#38bdf8;margin-bottom:18px;">Готовы начать?</div>
-    <h2 class="title-mega">Первый лот — через пять минут.</h2>
-    <p class="subtitle">Регистрация бесплатна. Ответственный статус активируется после оплаты. Организатор — на 12 месяцев в подарок.</p>
+    <div class="section-eyebrow" style="color:#38bdf8;margin-bottom:18px;"><?= $lang === 'en' ? 'Ready to start?' : 'Готовы начать?' ?></div>
+    <h2 class="title-mega"><?= $lang === 'en' ? 'Your first lot — in five minutes.' : 'Первый лот — через пять минут.' ?></h2>
+    <p class="subtitle"><?= $lang === 'en' ? 'Registration is free. The Responsible status is activated after payment. Organizer — 12 months on the house.' : 'Регистрация бесплатна. Ответственный статус активируется после оплаты. Организатор — на 12 месяцев в подарок.' ?></p>
     <div class="hero-actions">
-        <button class="btn-cta" onclick="openAuth && openAuth('register')">Создать аккаунт</button>
-        <a class="btn-cta outline" href="/reestr.php">Посмотреть торги →</a>
+        <button class="btn-cta" onclick="openAuth && openAuth('register')"><?= $lang === 'en' ? 'Create an account' : 'Создать аккаунт' ?></button>
+        <a class="btn-cta outline" href="/reestr.php"><?= $lang === 'en' ? 'View auctions →' : 'Посмотреть торги →' ?></a>
     </div>
 </section>
 
@@ -430,11 +429,11 @@ body > footer img[alt="Форсаж"] {
 <!-- Подсказка: «потяните, чтобы вращать 3D». Прячется после первого взаимодействия. -->
 <div id="drag-hint" class="drag-hint" aria-hidden="true">
     <span class="dh-dot"></span>
-    <span>Потяните, чтобы вращать сцену</span>
+    <span><?= $lang === 'en' ? 'Drag to rotate the scene' : 'Потяните, чтобы вращать сцену' ?></span>
 </div>
 
 <!-- Кнопка «Наверх» — фикс справа внизу, появляется после прокрутки. -->
-<button id="to-top" type="button" aria-label="Наверх" title="Наверх">
+<button id="to-top" type="button" aria-label="<?= $lang === 'en' ? 'Back to top' : 'Наверх' ?>" title="<?= $lang === 'en' ? 'Back to top' : 'Наверх' ?>">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
          stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 19V5"/><path d="M5 12l7-7 7 7"/>
@@ -822,7 +821,7 @@ function startScrollTimeline() {
        cardFlyLeft / cardFlyRight / cardDropDown / tileFlipIn / advRise. */
     document.addEventListener('animationend', e => {
         if (!e.target || !isCard(e.target)) return;
-        if (e.animationName && /Flip|Fly|Drop|Rise/.test(e.animationName)) {
+        if (e.animationName && /Flip|Fly|Drop|Rise|Slide/.test(e.animationName)) {
             settle(e.target);
         }
     }, true);
@@ -991,27 +990,17 @@ setTimeout(() => {
 .adv-grid > .adv:nth-child(3).in-view { animation-delay: .25s; }
 
 /* === HOVER (после того, как карточка встала на место) ===================== */
-/* Шиммер-плёнка на hover — диагональный световой блик, бегущий по карточке. */
+/* Никаких бегущих/мигающих эффектов: hover = только статичный наклон + свечение. */
 .auc-card { position: relative; isolation: isolate; }
-.auc-card::after {
-    content: ''; position: absolute; inset: 0; border-radius: 22px; pointer-events: none;
-    background: linear-gradient(120deg, transparent 25%, rgba(56,189,248,.55) 50%, transparent 75%);
-    background-size: 220% 100%; background-position: -120% 0;
-    opacity: 0; transition: opacity .3s ease;
-    mix-blend-mode: screen;
-}
-.auc-card.in-view:hover::after { opacity: 1; animation: shimmer 1.4s linear infinite; }
-@keyframes shimmer {
-    from { background-position: -120% 0; }
     to   { background-position:  120% 0; }
 }
 
-.auc-card.settled {
+.auc-card.in-view, .auc-card.settled {
     transition: box-shadow .35s ease, transform .45s cubic-bezier(.2,.9,.3,1.15), border-color .35s;
 }
 /* HOVER: только лёгкий 3D-наклон + подсветка. Никаких новых полётов
    (входной keyframe уже отыгран и снят классом .settled). */
-.auc-card.settled:hover {
+.auc-card.in-view:hover, .auc-card.settled:hover {
     transform: translateY(-10px) rotateX(-6deg) rotateY(6deg) scale(1.03);
     border-color: rgba(56,189,248,.85);
     box-shadow:
@@ -1021,18 +1010,18 @@ setTimeout(() => {
         inset 0 0 40px rgba(56,189,248,.18);
     z-index: 3;
 }
-.auc-card.settled:hover .ac-icon { transform: translateZ(28px) scale(1.12); }
-.auc-card.settled:hover h4       { transform: translateZ(20px); }
-.auc-card.settled:hover p        { transform: translateZ(10px); }
-.auc-card.settled:hover .badge   { transform: translateZ(24px) scale(1.06); background: rgba(56,189,248,.4); }
-.auc-card.settled .ac-icon, .auc-card.settled h4,
-.auc-card.settled p, .auc-card.settled .badge { transition: transform .45s cubic-bezier(.2,.9,.3,1.15), background .35s; }
+.auc-card.in-view:hover .ac-icon, .auc-card.settled:hover .ac-icon { transform: translateZ(28px) scale(1.12); }
+.auc-card.in-view:hover h4, .auc-card.settled:hover h4       { transform: translateZ(20px); }
+.auc-card.in-view:hover p, .auc-card.settled:hover p        { transform: translateZ(10px); }
+.auc-card.in-view:hover .badge, .auc-card.settled:hover .badge   { transform: translateZ(24px) scale(1.06); background: rgba(56,189,248,.4); }
+.auc-card.in-view .ac-icon, .auc-card.in-view h4, .auc-card.settled .ac-icon, .auc-card.settled h4,
+.auc-card.in-view p, .auc-card.in-view .badge, .auc-card.settled p, .auc-card.settled .badge { transition: transform .45s cubic-bezier(.2,.9,.3,1.15), background .35s; }
 
 /* Hover на плитках ролей и преимуществах — только наклон + подсветка,
    без новых 3D-полётов. Срабатывает только в .settled (когда входная
    анимация уже завершена), чтобы не было «пропадания» при наведении. */
-.tile.settled { transition: box-shadow .35s ease, transform .45s cubic-bezier(.2,.9,.3,1.15), border-color .35s; }
-.tile.settled:hover {
+.tile.in-view, .tile.settled { transition: box-shadow .35s ease, transform .45s cubic-bezier(.2,.9,.3,1.15), border-color .35s; }
+.tile.in-view:hover, .tile.settled:hover {
     transform: translateY(-8px) rotateX(-5deg) rotateY(5deg) scale(1.03);
     border-color: rgba(56,189,248,.8);
     box-shadow:
@@ -1042,8 +1031,8 @@ setTimeout(() => {
         inset 0 0 30px rgba(56,189,248,.12);
     z-index: 3;
 }
-.adv.settled { transition: box-shadow .35s ease, transform .45s cubic-bezier(.2,.9,.3,1.15), border-color .35s; }
-.adv.settled:hover {
+.adv.in-view, .adv.settled { transition: box-shadow .35s ease, transform .45s cubic-bezier(.2,.9,.3,1.15), border-color .35s; }
+.adv.in-view:hover, .adv.settled:hover {
     transform: translateY(-6px) rotateX(-4deg) scale(1.03);
     border-color: rgba(56,189,248,.65);
     box-shadow:

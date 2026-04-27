@@ -147,7 +147,7 @@ try {
     if ($requested_type === 'responsible') {
         try {
             $base_price  = 8000;
-            $express_fee = 0;
+            $express_fee = ($express === 1) ? 7000 : 0;
             $total       = $base_price + $express_fee;
 
             $stmt = $pdo->prepare("
@@ -172,7 +172,7 @@ try {
             /* Готовим данные для встраивания QR прямо в модалку регистрации,
                чтобы пользователь не уходил со страницы (как в profile.php).
                ST00012 — российский стандарт QR для СБП-переводов. */
-            $purpose    = "Повышение статуса Ответственный ID{$user_id} {$username}";
+            $purpose    = "Повышение статуса Ответственный ID{$user_id} {$username}" . ($express_fee > 0 ? " (экспресс)" : "");
             $sumKopecks = (int)round($total * 100);
             $qrPayload  = "ST00012"
                 . "|Name=ООО Форсаж"
