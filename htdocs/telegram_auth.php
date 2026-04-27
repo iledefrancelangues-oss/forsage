@@ -168,15 +168,6 @@ if ($is_configured && isset($_GET['id'], $_GET['hash'], $_GET['auth_date'])) {
         }
         .err code { background: #fff; padding: 1px 6px; border-radius: 4px; font-size: 12px; }
     </style>
-    <?php if ($is_configured): ?>
-    <script async src="https://telegram.org/js/telegram-widget.js?22"
-            data-telegram-login="<?= htmlspecialchars($bot_username) ?>"
-            data-size="large"
-            data-radius="10"
-            data-auth-url="<?= htmlspecialchars($_SERVER['PHP_SELF']) ?>"
-            data-request-access="write">
-    </script>
-    <?php endif; ?>
 </head>
 <body>
     <div class="container">
@@ -184,7 +175,14 @@ if ($is_configured && isset($_GET['id'], $_GET['hash'], $_GET['auth_date'])) {
 
         <?php if ($is_configured): ?>
             <p>Нажмите кнопку ниже для авторизации через Telegram.</p>
-            <div class="telegram-widget"></div>
+            <div class="telegram-widget">
+                <script async src="https://telegram.org/js/telegram-widget.js?22"
+                        data-telegram-login="<?= htmlspecialchars($bot_username) ?>"
+                        data-size="large"
+                        data-radius="10"
+                        data-auth-url="<?= htmlspecialchars((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https://' : 'http://') . $_SERVER['HTTP_HOST'] . $_SERVER['PHP_SELF']) ?>"
+                        data-request-access="write"></script>
+            </div>
         <?php else: ?>
             <p>Авторизация через Telegram пока не настроена.</p>
             <div class="err">
