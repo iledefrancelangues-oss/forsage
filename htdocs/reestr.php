@@ -319,7 +319,7 @@ include 'header.php';
                 // ----- КНОПКА ДЛЯ НЕАВТОРИЗОВАННЫХ (вызов openAuthModal) -----
                 if (empty($_SESSION['user_id'])) {
                     $btn_url = '#';
-                    $onclick = 'openAuthModal(); return false;';
+                    $onclick = "openAuth('login'); return false;";
                 } else {
                     if ($is_scand) {
                         $btn_url = "lot_scandinavian.php?id=$id";

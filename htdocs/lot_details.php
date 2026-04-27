@@ -8,7 +8,8 @@ if (session_status() === PHP_SESSION_NONE) {
 include 'db.php';
 date_default_timezone_set('Europe/Moscow');
 
-$id      = 6;
+$id      = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+if ($id <= 0) { http_response_code(400); die('Не указан id лота'); }
 $user_id = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0;
 
 /* ── AJAX-эндпоинт ───────────────────────────────────── */
