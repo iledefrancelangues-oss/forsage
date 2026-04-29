@@ -7,6 +7,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 require_once 'db.php';
+require_once 'db_schema_extra.php';
 
 $filter_type = $_GET['type'] ?? '';
 $filter_region = $_GET['region'] ?? '';
@@ -39,10 +40,17 @@ $stmt = $pdo->prepare("
 $stmt->execute($params);
 $lots = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+/* Preload current user's favorites in one query so the stars render filled. */
+$_user_id = (int)($_SESSION['user_id'] ?? 0);
+$_fav_ids = array_map(fn($l) => (int)$l['id'], $lots);
+require_once 'favorites_widget.php';
+$_favs = favorites_lookup($pdo, $_user_id, 'torgi', $_fav_ids);
+
 $types = $pdo->query("SELECT DISTINCT lot_type FROM torgi WHERE lot_type IS NOT NULL AND lot_type != ''")->fetchAll(PDO::FETCH_COLUMN);
 $regions = $pdo->query("SELECT DISTINCT region FROM torgi WHERE region IS NOT NULL AND region != ''")->fetchAll(PDO::FETCH_COLUMN);
 
 include 'header.php';
+favorites_render_assets($lang ?? 'ru');
 ?>
 <style>
 .torgi-list-wrap {
@@ -283,7 +291,9 @@ include 'header.php';
                 }
                 $view_url = 'torgi_view.php?id=' . (int)$lot['id'];
             ?>
-            <a href="<?= htmlspecialchars($view_url) ?>" class="lot-card">
+            <div class="lot-card-wrap" style="position:relative;">
+                <?= favorites_render_star('torgi', (int)$lot['id'], !empty($_favs[(int)$lot['id']]), $lang) ?>
+                <a href="<?= htmlspecialchars($view_url) ?>" class="lot-card">
                 <div class="lot-image">
                     <?php if ($first_image): ?>
                         <img src="<?= $first_image ?>" alt="<?= htmlspecialchars($lot['title']) ?>">
@@ -302,6 +312,7 @@ include 'header.php';
                     <span class="btn-details"><?= $lang === 'en' ? 'View details' : 'Подробнее' ?></span>
                 </div>
             </a>
+            </div>
             <?php endforeach; ?>
         </div>
     <?php endif; ?>

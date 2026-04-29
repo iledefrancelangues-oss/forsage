@@ -120,6 +120,13 @@ try {
     error_log('reestr load error: ' . $e->getMessage());
 }
 
+/* Preload current user's favorites in one query for the auction registry. */
+require_once 'db_schema_extra.php';
+require_once 'favorites_widget.php';
+$_user_id = (int)($_SESSION['user_id'] ?? 0);
+$_fav_ids = array_map(fn($l) => (int)$l['id'], $lots);
+$_favs = favorites_lookup($pdo, $_user_id, 'lot', $_fav_ids);
+
 $type_labels = ($lang ?? ($_SESSION['lang'] ?? 'ru')) === 'en' ? [
     'classic'      => '🔨 Open auction',
     'scandinavian' => '🔥 Scandinavian',
@@ -137,6 +144,7 @@ $type_labels = ($lang ?? ($_SESSION['lang'] ?? 'ru')) === 'en' ? [
 ];
 
 include 'header.php';
+favorites_render_assets($lang ?? 'ru');
 ?>
 <main style="flex:1;">
 <style>
@@ -354,7 +362,15 @@ include 'header.php';
             ?>
                 <tr>
                     <td>
-                        <div class="lot-title"><?= htmlspecialchars($title) ?></div>
+                        <div class="lot-title-row" style="display:flex;align-items:flex-start;gap:8px;">
+                            <span class="fav-star-cell" style="flex-shrink:0;">
+                                <?php $cls_extra = ''; ?>
+                                <button type="button" class="fav-star fav-star-inline <?= !empty($_favs[(int)$id]) ? 'is-fav' : '' ?>" data-lot-type="lot" data-lot-id="<?= (int)$id ?>" aria-pressed="<?= !empty($_favs[(int)$id]) ? 'true' : 'false' ?>" title="<?= !empty($_favs[(int)$id]) ? ($lang === 'en' ? 'Remove from favorites' : 'Убрать из избранного') : ($lang === 'en' ? 'Add to favorites' : 'В избранное') ?>" onclick="toggleFavorite(event,this)">
+                                    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 2.6l3.09 6.26 6.91 1-5 4.87 1.18 6.87L12 18.4l-6.18 3.2L7 14.73l-5-4.87 6.91-1L12 2.6z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" fill="var(--fav-fill, none)"/></svg>
+                                </button>
+                            </span>
+                            <div class="lot-title" style="flex:1;"><?= htmlspecialchars($title) ?></div>
+                        </div>
                         <div class="lot-sub">
                             №<?= $id ?>
                             <?php if (!empty($lot['description'])):

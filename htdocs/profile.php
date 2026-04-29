@@ -327,7 +327,38 @@ $role_labels = $lang === 'en' ? [
 ];
 $status_icon = ['pending' => '⏳', 'confirmed' => '✅', 'rejected' => '❌', 'approved' => '✅', 'draft' => '📝'];
 $status_color = ['pending' => '#f59e0b', 'confirmed' => '#4ade80', 'rejected' => '#f87171', 'approved' => '#4ade80', 'draft' => '#94a3b8'];
-$method_icon = ['balance' => '💳', 'cash' => '📱🧾', 'pack' => '📦', 'qr' => '📱', 'receipt' => '🧾'];
+$method_icon = ['balance' => 'ð³', 'cash' => 'ð±ð§¾', 'pack' => 'ð¦', 'qr' => 'ð±', 'receipt' => 'ð§¾'];
+
+/* Favorites: load full lots/torgi rows the user has starred. */
+require_once 'db_schema_extra.php';
+require_once 'favorites_widget.php';
+$fav_lots = [];
+$fav_torgi = [];
+try {
+    $fst = $pdo->prepare("
+        SELECT l.id, l.title, l.price, l.start_price, l.auction_type, l.auction_status,
+               l.end_time, f.created_at AS fav_at
+        FROM user_favorites f
+        JOIN lots l ON l.id = f.lot_id
+        WHERE f.user_id = ? AND f.lot_type = 'lot'
+        ORDER BY f.created_at DESC
+    ");
+    $fst->execute([$user_id]);
+    $fav_lots = $fst->fetchAll(PDO::FETCH_ASSOC);
+
+    $fst2 = $pdo->prepare("
+        SELECT t.id, t.title, t.price, t.region, t.lot_type, t.status,
+               t.images, f.created_at AS fav_at
+        FROM user_favorites f
+        JOIN torgi t ON t.id = f.lot_id
+        WHERE f.user_id = ? AND f.lot_type = 'torgi'
+        ORDER BY f.created_at DESC
+    ");
+    $fst2->execute([$user_id]);
+    $fav_torgi = $fst2->fetchAll(PDO::FETCH_ASSOC);
+} catch (Throwable $e) {
+    error_log('profile favorites load: ' . $e->getMessage());
+}
 
 ?>
 <!DOCTYPE html>
@@ -666,6 +697,9 @@ $method_icon = ['balance' => '💳', 'cash' => '📱🧾', 'pack' => '📦', 'qr
         </a>
         <a href="torgi_list.php" class="nav-item">
             <i data-lucide="store"></i> <span class="label"><?= $lang === 'en' ? 'Commission' : 'Комиссионная' ?></span>
+        </a>
+        <a href="#" class="nav-item" id="favorites-tab-link">
+            <i data-lucide="star"></i> <span class="label"><?= $lang === 'en' ? 'Favorites' : 'Избранное' ?></span>
         </a>
         <a href="#" class="nav-item" id="password-tab-link">
             <i data-lucide="lock"></i> <span class="label"><?= $lang === 'en' ? 'Password' : 'Пароль' ?></span>
@@ -1040,7 +1074,84 @@ $method_icon = ['balance' => '💳', 'cash' => '📱🧾', 'pack' => '📦', 'qr
         </div>
     </div>
 
-    <!-- Блок смены пароля (скрыт по умолчанию) -->
+<!-- Favorites section (hidden by default) -->
+    <div id="favorites-content" style="display:none;">
+        <div class="card">
+            <h3 style="margin:0 0 16px;"><span style="color:#fbbf24;">&#9733;</span> <?= $lang === 'en' ? 'Favorites' : 'Избранное' ?></h3>
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="fav-lots"><?= $lang === 'en' ? 'Auctions' : 'Аукционы' ?> (<?= count($fav_lots) ?>)</button>
+                <button class="tab-btn" data-tab="fav-torgi"><?= $lang === 'en' ? 'Commission' : 'Комиссионные' ?> (<?= count($fav_torgi) ?>)</button>
+            </div>
+            <div class="tab-pane active" id="tab-fav-lots">
+                <?php if (count($fav_lots) > 0): ?>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr>
+                            <th><?= $lang === 'en' ? 'Lot' : 'Лот' ?></th>
+                            <th><?= $lang === 'en' ? 'Type' : 'Тип' ?></th>
+                            <th><?= $lang === 'en' ? 'Price' : 'Цена' ?></th>
+                            <th><?= $lang === 'en' ? 'Status' : 'Статус' ?></th>
+                            <th></th>
+                        </tr></thead>
+                        <tbody>
+                        <?php foreach ($fav_lots as $fl):
+                            $atype = $fl['auction_type'] ?? 'classic';
+                            $btn_url = match($atype) {
+                                'scandinavian' => 'lot_scandinavian.php?id='.(int)$fl['id'],
+                                'closed'       => 'lot_closed.php?id='.(int)$fl['id'],
+                                'quotation'    => 'lot_quotation.php?id='.(int)$fl['id'],
+                                'proposal'     => 'lot_proposal.php?id='.(int)$fl['id'],
+                                'descending'   => 'lot_descending.php?id='.(int)$fl['id'],
+                                default        => 'lot_details.php?id='.(int)$fl['id'],
+                            };
+                        ?>
+                        <tr>
+                            <td><a href="<?= htmlspecialchars($btn_url) ?>" style="color:#e2e8f0;text-decoration:none;font-weight:700;"><?= htmlspecialchars($fl['title'] ?? '—') ?></a></td>
+                            <td><?= htmlspecialchars($atype) ?></td>
+                            <td><?= number_format((float)($fl['price'] ?? 0), 0, '.', ' ') ?>&nbsp;₽</td>
+                            <td><?= htmlspecialchars($fl['auction_status'] ?? '') ?></td>
+                            <td><a href="<?= htmlspecialchars($btn_url) ?>" class="btn btn-primary" style="padding:6px 12px;font-size:12px;text-decoration:none;"><?= $lang === 'en' ? 'Open' : 'Открыть' ?></a></td>
+                        </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <?php else: ?>
+                <p style="color:var(--dim);"><?= $lang === 'en' ? 'No favorited auctions yet. Tap the star on any lot to save it here.' : 'Пока нет отмеченных аукционов. Нажмите звёздочку на любом лоте, чтобы сохранить его здесь.' ?></p>
+                <?php endif; ?>
+            </div>
+            <div class="tab-pane" id="tab-fav-torgi">
+                <?php if (count($fav_torgi) > 0): ?>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr>
+                            <th><?= $lang === 'en' ? 'Lot' : 'Лот' ?></th>
+                            <th><?= $lang === 'en' ? 'Region' : 'Регион' ?></th>
+                            <th><?= $lang === 'en' ? 'Price' : 'Цена' ?></th>
+                            <th><?= $lang === 'en' ? 'Status' : 'Статус' ?></th>
+                            <th></th>
+                        </tr></thead>
+                        <tbody>
+                        <?php foreach ($fav_torgi as $ft): ?>
+                        <tr>
+                            <td><a href="torgi_view.php?id=<?= (int)$ft['id'] ?>" style="color:#e2e8f0;text-decoration:none;font-weight:700;"><?= htmlspecialchars($ft['title'] ?? '—') ?></a></td>
+                            <td><?= htmlspecialchars($ft['region'] ?? '') ?></td>
+                            <td><?= number_format((float)($ft['price'] ?? 0), 0, '.', ' ') ?>&nbsp;₽</td>
+                            <td><?= htmlspecialchars($ft['status'] ?? '') ?></td>
+                            <td><a href="torgi_view.php?id=<?= (int)$ft['id'] ?>" class="btn btn-primary" style="padding:6px 12px;font-size:12px;text-decoration:none;"><?= $lang === 'en' ? 'Open' : 'Открыть' ?></a></td>
+                        </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <?php else: ?>
+                <p style="color:var(--dim);"><?= $lang === 'en' ? 'No favorited commission lots yet.' : 'Пока нет отмеченных комиссионных лотов.' ?></p>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+
+        <!-- Блок смены пароля (скрыт по умолчанию) -->
     <div id="password-content" style="display:none;">
         <div class="card">
             <h3 style="margin:0 0 20px;">🔐 <?= $lang === 'en' ? 'Change password' : 'Смена пароля' ?></h3>
@@ -1205,6 +1316,7 @@ if (mobileToggle && sidebar) {
 const mainContent = document.getElementById('main-content');
 const passwordContent = document.getElementById('password-content');
 const telegramContent = document.getElementById('telegram-content');
+const favoritesContent = document.getElementById('favorites-content');
 
 // Обработчик для "Пароль"
 const passwordLink = document.getElementById('password-tab-link');
@@ -1217,6 +1329,7 @@ if (passwordLink && mainContent && passwordContent && telegramContent) {
         mainContent.style.display = 'none';
         passwordContent.style.display = 'block';
         telegramContent.style.display = 'none';
+        if (favoritesContent) favoritesContent.style.display = 'none';
         if (sidebar.classList.contains('open')) sidebar.classList.remove('open');
     });
 }
@@ -1232,6 +1345,23 @@ if (telegramLink && mainContent && passwordContent && telegramContent) {
         mainContent.style.display = 'none';
         passwordContent.style.display = 'none';
         telegramContent.style.display = 'block';
+        if (favoritesContent) favoritesContent.style.display = 'none';
+        if (sidebar.classList.contains('open')) sidebar.classList.remove('open');
+    });
+}
+
+// Favorites tab handler
+const favoritesLink = document.getElementById('favorites-tab-link');
+if (favoritesLink && mainContent && favoritesContent) {
+    favoritesLink.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        this.classList.add('active');
+        mainContent.style.display = 'none';
+        if (passwordContent) passwordContent.style.display = 'none';
+        if (telegramContent) telegramContent.style.display = 'none';
+        favoritesContent.style.display = 'block';
         if (sidebar.classList.contains('open')) sidebar.classList.remove('open');
     });
 }
@@ -1244,6 +1374,7 @@ document.querySelectorAll('.nav-item').forEach(item => {
             mainContent.style.display = 'block';
             passwordContent.style.display = 'none';
             telegramContent.style.display = 'none';
+            if (favoritesContent) favoritesContent.style.display = 'none';
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             this.classList.add('active');
             if (sidebar.classList.contains('open')) sidebar.classList.remove('open');

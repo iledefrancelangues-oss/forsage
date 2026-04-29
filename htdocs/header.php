@@ -95,10 +95,13 @@ header{position:fixed;top:0;left:0;right:0;height:80px;background:#e5e4e2;displa
 .lang-btn.active{background:#1e293b;color:#fff;border-color:#1e293b}
 .btn-login{background:#0088cc;color:#fff;border:none;padding:9px 18px;border-radius:8px;font-weight:900;cursor:pointer;font-size:13px;white-space:nowrap}
 .btn-login:hover{background:#0077b3}
-.burger-trigger{display:none;cursor:pointer;padding:4px;background:none;border:none;flex-shrink:0}
+.burger-trigger{display:none;cursor:pointer;width:42px;height:42px;align-items:center;justify-content:center;background:#0088cc;border:none;border-radius:10px;flex-shrink:0;box-shadow:0 4px 12px rgba(0,136,204,.35);color:#ffffff;-webkit-tap-highlight-color:transparent}
+.burger-trigger:hover,.burger-trigger:active{background:#0077b3}
+.burger-trigger i,.burger-trigger svg{color:#ffffff!important;stroke:#ffffff!important;stroke-width:2.5!important;width:24px!important;height:24px!important;display:block}
 #mobileMenu{position:fixed;top:0;left:0;right:0;bottom:0;background:#fff;z-index:2001;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;overflow-y:auto;transform:translateX(100%);transition:transform .35s ease}
 #mobileMenu.open{transform:translateX(0)}
-.mob-close{position:absolute;top:20px;right:20px;cursor:pointer;background:none;border:none;padding:4px}
+.mob-close{position:absolute;top:18px;right:18px;cursor:pointer;width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;background:#0088cc;border:none;border-radius:10px;box-shadow:0 4px 12px rgba(0,136,204,.35);color:#fff;-webkit-tap-highlight-color:transparent}
+.mob-close i,.mob-close svg{color:#fff!important;stroke:#fff!important;stroke-width:2.5!important;width:26px!important;height:26px!important}
 .mob-nav-link{display:block;text-decoration:none;color:#1e293b;font-size:20px;font-weight:800;padding:14px 0;text-align:center;width:100%;border-bottom:1px solid #f1f5f9}
 .mob-nav-link:hover{color:#0088cc}
 .mob-lang-block{display:flex;gap:10px;margin:24px 0 10px}
@@ -111,7 +114,7 @@ header{position:fixed;top:0;left:0;right:0;height:80px;background:#e5e4e2;displa
 .mob-link{text-decoration:none;font-size:15px;font-weight:700;padding:10px 28px;border-radius:10px}
 .mob-link-lk{color:#0088cc;border:2px solid rgba(0,136,204,.2)}
 .mob-link-out{color:#ef4444;border:2px solid #fee2e2}
-@media(max-width:1100px){.nav-menu{display:none}.lang-switcher{display:none}.burger-trigger{display:block}}
+@media(max-width:1100px){.nav-menu{display:none}.lang-switcher{display:none}.burger-trigger{display:inline-flex}}
 /* На мобильных блок имени/баланса из хедера убираем — в бургер-меню они уже есть. */
 @media(max-width:768px){.header-auth-block{display:none}}
 @media(max-width:600px){header{height:70px;padding:0 3%}body{padding-top:70px}.logo-img{height:32px}.msc-box{font-size:11px;padding:4px 9px}.btn-login{padding:7px 14px;font-size:12px}.header-right{gap:8px}}

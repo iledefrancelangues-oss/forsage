@@ -63,7 +63,8 @@ header .msc-box .dot { background: #38bdf8 !important; box-shadow: 0 0 8px #38bd
 header .lang-btn { color: #94a3b8 !important; }
 header .lang-btn.active { color: #38bdf8 !important; background: rgba(56,189,248,.1) !important; }
 /* Бургер на мобильных — белая иконка. */
-header .burger-trigger i { color: #e2e8f0 !important; }
+header .burger-trigger i,
+header .burger-trigger svg { color: #ffffff !important; stroke: #ffffff !important; }
 /* Кнопка «Войти». */
 header .btn-login {
     background: linear-gradient(135deg, #0088cc, #38bdf8) !important;
@@ -124,6 +125,7 @@ body.webgl-on .starfield { opacity: 0; transition: opacity .8s ease; }
 
 /* CSS-«ядро» — ВСЕГДА видно, даже без WebGL. На него Three.js накладывается сверху. */
 .hero-orb-css {
+    display: none !important; /* CSS fallback rings disabled — 3D planet only. */
     position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
     width: min(75vw, 720px); height: min(75vw, 720px);
     z-index: 0; pointer-events: none;
@@ -472,10 +474,9 @@ if (toTopBtn) {
 
 /* Решаем, нужно ли вообще пытаться рисовать 3D. */
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const tooSmall     = window.innerWidth <= 480;
 const lowDevice    = (navigator.deviceMemory && navigator.deviceMemory < 2) ||
                      (navigator.hardwareConcurrency && navigator.hardwareConcurrency < 2);
-const skip3D       = reduceMotion || tooSmall || lowDevice;
+const skip3D       = reduceMotion || lowDevice;
 
 /* Three.js приходит асинхронно — ждём его готовности и стартуем сцену. */
 if (!skip3D) {
@@ -611,31 +612,38 @@ function initThreeScene(THREE) {
     planetTex.wrapS = THREE.RepeatWrapping;
 
     const planetGroup = new THREE.Group();
-    /* Anchored to the upper-right corner, well to the right of the hero copy.
-       Kept full-size and dramatic on desktop; on narrow viewports the planet
-       is pushed further off-screen and slightly scaled down so it never
-       intersects the title. Recomputed on resize. */
+    /* Anchored in the lower-right region of the viewport, but pulled inward
+       toward the centre (above the bottom edge, away from the right edge).
+       Sized to fit fully (rings included) across breakpoints. */
     function getPlanetLayout() {
         const w = window.innerWidth;
+        const h = window.innerHeight;
+        const aspect = w / Math.max(1, h);
         if (w <= 480) {
-            /* Phone: planet sits up & off to the right, mostly clipped. */
-            return { x: 5.0, y: 4.6, z: -4.5, s: 0.55 };
+            /* Phone: upper-right anchor, lifted high above the eyebrow line,
+               sized small enough so rings never touch any hero copy. Pushed
+               deeper into perspective and given a Saturn-style axial tilt. */
+            return { x: 1.4, y: 4.6, z: -7.0, s: 0.42, tilt: -0.42 };
         }
         if (w <= 900) {
-            /* Tablet: medium planet just grazing the upper-right corner. */
-            return { x: 6.5, y: 3.6, z: -4.0, s: 0.7 };
+            /* Tablet: upper-right anchor, well clear of header and title.
+               Mobile-style tilt inherited. */
+            return { x: aspect < 1.1 ? 1.6 : 2.6, y: 4.0, z: -6.5, s: 0.45, tilt: -0.42 };
         }
         if (w <= 1280) {
-            /* Small desktop / 13" laptop: tuck planet farther right so the
-               title never crosses the rings. */
-            return { x: 9.0, y: 3.0, z: -3.8, s: 0.85 };
+            /* Small desktop / 13" laptop: lower-right pulled toward centre. */
+            return { x: 5.0, y: -5.5, z: -4.5, s: 0.55, tilt: 0 };
         }
-        /* Large desktop: full-size planet, dramatic upper-right anchor. */
-        return { x: 8.5, y: 2.6, z: -3.5, s: 1.0 };
+        /* Large desktop: lower-right tucked toward centre, plenty of margin
+           on both the right and bottom edges. */
+        return { x: 8.5, y: -5.0, z: -4.5, s: 0.65, tilt: 0 };
     }
     let planetLayout = getPlanetLayout();
     planetGroup.position.set(planetLayout.x, planetLayout.y, planetLayout.z);
     planetGroup.scale.setScalar(planetLayout.s);
+    /* Saturn-style axial tilt — applied only on mobile breakpoints where the
+       layout config sets a non-zero tilt. */
+    planetGroup.rotation.z = planetLayout.tilt || 0;
     scene.add(planetGroup);
 
     const planet = new THREE.Mesh(
@@ -864,12 +872,12 @@ function initThreeScene(THREE) {
         planetGroup.rotation.y = drag.userYaw + tt * 0.04;
         planetGroup.rotation.x = drag.userPitch * 0.6;
 
-        /* Scroll choreography: planet drifts further out to the upper-right
-           and away as the user scrolls; never crosses the hero text. The
-           anchor varies with viewport so mobile keeps the title clean. */
+        /* Scroll choreography: planet sinks further into the lower-right
+           and recedes (z further) as the user scrolls — cinematic parallax
+           anchored to the lower-right inset position. */
         const sp = scrollProgress;
-        planetGroup.position.x = planetLayout.x + sp * 1.4 + mouse.x * 0.18;
-        planetGroup.position.y = planetLayout.y + sp * 0.6 - mouse.y * 0.12;
+        planetGroup.position.x = planetLayout.x + sp * 0.4 + mouse.x * 0.10;
+        planetGroup.position.y = planetLayout.y - sp * 0.3 - mouse.y * 0.08;
         planetGroup.position.z = planetLayout.z - sp * 4.5;
         planetGroup.scale.setScalar(planetLayout.s);
 
@@ -918,6 +926,7 @@ function initThreeScene(THREE) {
 
     window.addEventListener('resize', () => {
         planetLayout = getPlanetLayout();
+        planetGroup.rotation.z = planetLayout.tilt || 0;
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight, false);
