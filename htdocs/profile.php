@@ -389,10 +389,13 @@ try {
         .sidebar {
             width: 240px;
             background: #0f172a;
-            padding: 28px 16px;
+            padding: 28px 16px 24px;
             display: flex;
             flex-direction: column;
             height: 100vh;
+            max-height: 100vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
             position: fixed;
             left: 0;
             top: 0;
@@ -783,18 +786,18 @@ try {
         </div>
 
         <div class="card" style="margin-bottom:24px;">
-            <h3 style="margin:0 0 20px;">💰 <?= $lang === 'en' ? 'Top up balance' : 'Пополнение баланса' ?></h3>
+            <h3 style="margin:0 0 6px;">💰 <?= $lang === 'en' ? 'Top up balance' : 'Пополнение баланса' ?></h3>
+            <p style="color:var(--dim);font-size:13px;margin:0 0 16px;"><?= $lang === 'en' ? 'Minimum top-up RUB 7,000, in multiples of RUB 500.' : 'Минимальная сумма пополнения — 7 000 ₽, кратно 500 ₽.' ?></p>
             <div class="amounts" id="amounts-row">
-                <?php foreach ([1000,3000,5000,10000,25000,50000] as $a): ?>
+                <?php foreach ([7000,10000,15000,25000,50000,100000] as $a): ?>
                 <button class="amt-btn" onclick="selectAmt(<?= $a ?>)"><?= number_format($a, 0, '.', "\u{00A0}") ?>&nbsp;₽</button>
                 <?php endforeach; ?>
             </div>
             <input class="field" type="number" id="custom-amount"
-                   placeholder="<?= $lang === 'en' ? 'Or enter an amount' : 'Или введите сумму' ?>" min="100" step="100"
+                   placeholder="<?= $lang === 'en' ? 'Or enter an amount (min 7,000, step 500)' : 'Или введите сумму (мин 7 000 ₽, шаг 500)' ?>" min="7000" step="500"
                    oninput="deselectAmts()" style="max-width:300px;">
             <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:4px;">
-                <button class="btn btn-primary" onclick="topupQR()">📱 <?= $lang === 'en' ? 'Pay by QR / SBP' : 'Оплатить по QR / СБП' ?></button>
-                <button class="btn btn-outline" onclick="topupReceipt()">🧾 Получить квитанцию</button>
+                <button class="btn btn-primary" onclick="topupOpen()">💳 <?= $lang === 'en' ? 'Pay' : 'Оплатить' ?></button>
             </div>
             <div id="topup-msg" style="margin-top:10px;"></div>
         </div>
@@ -1207,29 +1210,51 @@ try {
 </main>
 
 <!-- Модалки и скрипты (сохраняем из исходного рабочего файла, без изменений) -->
-<div id="modal-qr" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('open')">
-    <div class="modal-box">
-        <h3>📱 Оплата по QR / СБП</h3>
-        <div style="margin:16px 0;"><img id="qr-img" src="" alt="QR" style="max-width:100%;border-radius:16px;"></div>
-        <div style="font-size:13px;color:#555;">Назначение: <b id="qr-purpose"></b><br>Сумма: <b id="qr-sum-label"></b></div>
-        <button class="modal-close" onclick="document.getElementById('modal-qr').classList.remove('open')">Закрыть</button>
-    </div>
-</div>
-
-<div class="modal-overlay" id="modal-receipt" onclick="if(event.target===this)this.classList.remove('open')">
-    <div class="modal-box">
-        <h3>🧾 Реквизиты для перевода</h3>
-        <div style="background:#f8fafc;border-radius:12px;padding:16px;text-align:left;font-size:13px;line-height:2.2;margin:16px 0;">
-            <div>Получатель: <b>ООО «Форсаж»</b></div>
-            <div>ИНН: <b>7728282160</b></div>
-            <div>Банк: <b>ООО Банк Точка</b></div>
-            <div>БИК: <b>044525104</b></div>
-            <div>Счёт: <b>40702810101500033019</b></div>
-            <div>Назначение: <b id="rec-purpose"></b></div>
-            <div>Сумма: <b id="rec-sum" style="color:#0088cc;font-size:16px;"></b></div>
+<!-- Unified topup modal (mirrors torgi_view.php upgrade modal scheme) -->
+<div id="modal-topup" class="modal-overlay" onclick="if(event.target===this)closeTopupModal()">
+    <div class="modal-box" style="max-width:520px;width:100%;text-align:left;padding:0;">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 22px;border-bottom:1px solid #e2e8f0;">
+            <h3 style="margin:0;font-size:18px;font-weight:800;color:#0f172a;">💰 <?= $lang === 'en' ? 'Top-up payment' : 'Оплата пополнения' ?></h3>
+            <button type="button" onclick="closeTopupModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#64748b;line-height:1;">×</button>
         </div>
-        <button class="btn btn-primary" style="width:100%;padding:14px;font-size:15px;" onclick="confirmTopup()">✅ Отправил платёж</button>
-        <button class="modal-close" onclick="document.getElementById('modal-receipt').classList.remove('open')">Закрыть</button>
+        <div style="padding:18px 22px;">
+            <div id="topup-summary" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;margin-bottom:14px;">
+                <div style="font-weight:700;color:#0f172a;" id="topup-tariff-name"><?= $lang === 'en' ? 'Account top-up' : 'Пополнение баланса' ?></div>
+                <div style="color:#0f172a;font-size:14px;margin-top:4px;" id="topup-amount-line">— ₽</div>
+                <div style="color:#64748b;font-size:12px;margin-top:2px;" id="topup-vat-line"></div>
+            </div>
+
+            <div style="display:flex;gap:8px;margin-bottom:14px;">
+                <button type="button" id="tab-topup-qr" class="tt-tab tt-active" onclick="topupSwitchTab('qr')" style="flex:1;padding:10px 12px;border:1px solid #0ea5e9;background:#eff6ff;color:#0284c7;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;"><?= $lang === 'en' ? 'Pay by QR' : 'Оплата по QR' ?></button>
+                <button type="button" id="tab-topup-receipt" class="tt-tab" onclick="topupSwitchTab('receipt')" style="flex:1;padding:10px 12px;border:1px solid #e2e8f0;background:#fff;color:#475569;border-radius:10px;font-weight:600;font-size:13px;cursor:pointer;"><?= $lang === 'en' ? 'Bank receipt' : 'Банковская квитанция' ?></button>
+            </div>
+
+            <div id="topup-pane-qr" style="text-align:center;">
+                <img id="topup-qr-img" src="" alt="QR" style="max-width:220px;width:100%;border:1px solid #e2e8f0;border-radius:14px;padding:8px;background:#fff;">
+                <div style="color:#64748b;font-size:12px;margin-top:8px;"><?= $lang === 'en' ? 'Scan the QR code in your banking app (SBP).' : 'Отсканируйте QR в приложении банка (СБП).' ?></div>
+                <div style="background:#f8fafc;border-radius:8px;padding:10px;margin-top:12px;font-size:12px;color:#475569;text-align:left;line-height:1.6;">
+                    <div><b><?= $lang === 'en' ? 'Purpose' : 'Назначение' ?>:</b> <span id="topup-qr-purpose"></span></div>
+                </div>
+            </div>
+
+            <div id="topup-pane-receipt" style="display:none;text-align:center;">
+                <p style="color:#475569;font-size:13px;margin:0 0 14px;"><?= $lang === 'en' ? 'Open the printable bank receipt with payment details and a QR code in a new tab.' : 'Откройте банковскую квитанцию с реквизитами и QR-кодом в новой вкладке для печати или сохранения PDF.' ?></p>
+                <button type="button" class="btn btn-primary" onclick="topupOpenReceiptTab()" style="width:100%;padding:12px 14px;"><?= $lang === 'en' ? '🧾 Generate receipt' : '🧾 Сформировать квитанцию' ?></button>
+            </div>
+
+            <div style="border-top:1px solid #e2e8f0;margin-top:18px;padding-top:14px;">
+                <div style="font-weight:700;color:#0f172a;font-size:13px;margin-bottom:8px;"><?= $lang === 'en' ? 'After paying, upload the receipt for review' : 'После оплаты — загрузите подтверждение' ?></div>
+                <form id="topup-confirm-form" enctype="multipart/form-data" onsubmit="topupSubmitProof(event)">
+                    <input type="hidden" name="action" value="confirm_topup">
+                    <input type="hidden" name="amount" id="topup-confirm-amount" value="">
+                    <input type="hidden" name="payment_method" id="topup-confirm-method" value="qr">
+                    <input type="file" name="payment_proof" id="topup-confirm-file" accept="image/*,application/pdf" required style="width:100%;padding:9px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:#fff;color:#0f172a;margin-bottom:8px;">
+                    <textarea name="comment" id="topup-confirm-comment" rows="2" placeholder="<?= $lang === 'en' ? 'Comment (optional)' : 'Комментарий (необязательно)' ?>" style="width:100%;padding:9px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:#fff;color:#0f172a;resize:vertical;margin-bottom:10px;"></textarea>
+                    <button type="submit" class="btn btn-primary" style="width:100%;padding:11px;font-size:14px;"><?= $lang === 'en' ? 'Submit for review' : 'Отправить на проверку' ?></button>
+                </form>
+                <div id="topup-confirm-msg" style="margin-top:8px;font-size:13px;"></div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -1413,6 +1438,7 @@ document.querySelectorAll('.modal').forEach(m => {
 
 const USER_ID = <?= (int)$user_id ?>;
 const USERNAME = '<?= addslashes($user['username']) ?>';
+window.__LANG = '<?= $lang === 'en' ? 'en' : 'ru' ?>';
 let selectedAmt = 0;
 let currentMethod = 'qr';
 const AMOUNTS_LIST = [1000,3000,5000,10000,25000,50000];
@@ -1439,65 +1465,101 @@ function setMsg(text, color) {
     m.textContent = text;
     m.style.color = color || '#ef4444';
 }
-function topupQR() {
+function topupOpen() {
     const amount = getAmount();
-    if (!amount || amount < 100) { setMsg('Укажите сумму от 100 ₽'); return; }
-    currentMethod = 'qr';
-    createTopup(amount, 'qr');
-}
-function topupReceipt() {
-    const amount = getAmount();
-    if (!amount || amount < 100) { setMsg('Укажите сумму от 100 ₽'); return; }
-    currentMethod = 'receipt';
-    createTopup(amount, 'receipt');
-}
-function createTopup(amount, method) {
+    if (!amount || amount < 7000) { setMsg(window.__LANG === 'en' ? 'Minimum top-up is RUB 7,000' : 'Минимальная сумма — 7 000 ₽'); return; }
+    if (amount % 500 !== 0) { setMsg(window.__LANG === 'en' ? 'Amount must be a multiple of 500' : 'Сумма должна быть кратной 500 ₽'); return; }
+    if (amount > 500000) { setMsg(window.__LANG === 'en' ? 'Maximum 500,000 RUB per top-up' : 'Максимум 500 000 ₽ за раз'); return; }
     setMsg('', '');
+    // Render modal contents
+    const vat = Math.round(amount * 22 / 122);
+    const purpose = (window.__LANG === 'en')
+        ? `Account top-up ID${USER_ID} ${USERNAME}, RUB ${amount.toLocaleString('en-US')}, incl. VAT 22% RUB ${vat.toLocaleString('en-US')}`
+        : `Пополнение счёта ID${USER_ID} ${USERNAME}, ${amount.toLocaleString('ru-RU')} ₽, в т.ч. НДС 22% — ${vat.toLocaleString('ru-RU')} ₽`;
+    const amtFmt = (window.__LANG === 'en')
+        ? `RUB ${amount.toLocaleString('en-US')}`
+        : `${amount.toLocaleString('ru-RU')} ₽`;
+    document.getElementById('topup-amount-line').textContent = amtFmt;
+    document.getElementById('topup-vat-line').textContent = (window.__LANG === 'en')
+        ? `Incl. VAT 22%: RUB ${vat.toLocaleString('en-US')}`
+        : `В т.ч. НДС 22%: ${vat.toLocaleString('ru-RU')} ₽`;
+    document.getElementById('topup-qr-purpose').textContent = purpose;
+    const qrData = `ST00012|Name=ООО Форсаж|PersonalAcc=40702810101500033019|BankName=ООО Банк Точка|BIC=044525104|CorrespAcc=30101810745374525104|PayeeINN=7728282160|KPP=773001001|Sum=${amount}00|Purpose=${encodeURIComponent(purpose)}`;
+    document.getElementById('topup-qr-img').src = 'https://api.qrserver.com/v1/create-qr-code/?size=440x440&data=' + encodeURIComponent(qrData);
+    document.getElementById('topup-confirm-amount').value = amount;
+    document.getElementById('topup-confirm-method').value = 'qr';
+    document.getElementById('topup-confirm-msg').textContent = '';
+    topupSwitchTab('qr');
+    document.getElementById('modal-topup').classList.add('open');
+    // Persist a topup intent on the server (best-effort, mirrors old flow)
     const fd = new FormData();
     fd.append('action', 'topup');
     fd.append('amount', amount);
-    fd.append('payment_method', method);
-    fetch('topup_handler.php', { method: 'POST', body: fd })
-        .then(r => r.json())
-        .then(d => {
-            if (d.success) {
-                showPayModal(amount, method);
-            } else {
-                setMsg(d.msg || 'Ошибка');
-            }
-        })
-        .catch(() => setMsg('Ошибка связи'));
+    fd.append('payment_method', 'qr');
+    fetch('topup_handler.php', { method: 'POST', body: fd }).catch(() => {});
 }
-function showPayModal(amount, method) {
-    const vat = Math.round(amount * 22 / 122);
-    const purpose = `Пополнение счета ID${USER_ID} ${USERNAME}, ${amount.toLocaleString('ru-RU')} ₽, в т.ч. НДС ${vat.toLocaleString('ru-RU')} ₽ (22%)`;
-    const amtFmt = amount.toLocaleString('ru-RU') + ' ₽';
-    if (method === 'qr') {
-        const qrData = `ST00012|Name=ООО Форсаж|PersonalAcc=40702810101500033019|BankName=ООО Банк Точка|BIC=044525104|CorrespAcc=30101810745374525104|PayeeINN=7728282160|KPP=773001001|Sum=${amount}00|Purpose=${purpose}`;
-        document.getElementById('qr-img').src = 'https://api.qrserver.com/v1/create-qr-code/?size=440x440&data=' + encodeURIComponent(qrData);
-        document.getElementById('qr-sum-label').textContent = amtFmt;
-        document.getElementById('qr-purpose').textContent = purpose;
-        document.getElementById('modal-qr').classList.add('open');
-    } else {
-        document.getElementById('rec-sum').textContent = amtFmt;
-        document.getElementById('rec-purpose').textContent = purpose;
-        document.getElementById('modal-receipt').classList.add('open');
+function closeTopupModal() {
+    document.getElementById('modal-topup').classList.remove('open');
+}
+function topupSwitchTab(tab) {
+    const isQR = tab === 'qr';
+    const btnQR = document.getElementById('tab-topup-qr');
+    const btnRC = document.getElementById('tab-topup-receipt');
+    if (btnQR && btnRC) {
+        btnQR.style.background = isQR ? '#eff6ff' : '#fff';
+        btnQR.style.borderColor = isQR ? '#0ea5e9' : '#e2e8f0';
+        btnQR.style.color = isQR ? '#0284c7' : '#475569';
+        btnQR.style.fontWeight = isQR ? '700' : '600';
+        btnRC.style.background = !isQR ? '#eff6ff' : '#fff';
+        btnRC.style.borderColor = !isQR ? '#0ea5e9' : '#e2e8f0';
+        btnRC.style.color = !isQR ? '#0284c7' : '#475569';
+        btnRC.style.fontWeight = !isQR ? '700' : '600';
     }
+    document.getElementById('topup-pane-qr').style.display = isQR ? 'block' : 'none';
+    document.getElementById('topup-pane-receipt').style.display = isQR ? 'none' : 'block';
+    document.getElementById('topup-confirm-method').value = tab;
 }
-function confirmTopup() {
-    const amount = getAmount();
-    if (!amount || amount < 7000) {
-        setMsg('Укажите сумму от 7000 ₽', '#ef4444');
+function topupOpenReceiptTab() {
+    const amount = parseInt(document.getElementById('topup-confirm-amount').value, 10) || getAmount();
+    if (!amount || amount < 7000 || amount % 500 !== 0) {
+        document.getElementById('topup-confirm-msg').textContent = (window.__LANG === 'en')
+            ? 'Choose an amount: minimum 7,000 RUB, multiples of 500.'
+            : 'Выберите сумму: минимум 7 000 ₽, кратно 500.';
+        document.getElementById('topup-confirm-msg').style.color = '#ef4444';
         return;
     }
-    const vat = Math.round(amount * 22 / 122);
-    const purpose = `Пополнение счета ID${USER_ID} ${USERNAME}, ${amount.toLocaleString('ru-RU')} ₽, в т.ч. НДС ${vat.toLocaleString('ru-RU')} ₽ (22%)`;
-    const qrData = `ST00012|Name=ООО Форсаж|PersonalAcc=40702810101500033019|BankName=ООО Банк Точка|BIC=044525104|CorrespAcc=30101810745374525104|PayeeINN=7728282160|KPP=773001001|Sum=${amount}00|Purpose=${purpose}`;
-    const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(qrData);
-    const w = window.open('', '_blank', 'width=800,height=900,scrollbars=yes,resizable=yes');
-    if (!w) return;
-    w.document.write(`<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><title>Квитанция на оплату</title><style>body{font-family:Inter,system-ui,Arial,sans-serif;background:#0f172a;margin:0;padding:24px;color:#e5e7eb;}.wrap{max-width:720px;margin:0 auto;background:#020617;border-radius:20px;padding:24px 28px;border:1px solid #1e293b;}h1{margin:0 0 12px;font-size:20px;font-weight:800;}.block{margin:10px 0 14px;font-size:13px;line-height:1.8;}.label{color:#9ca3af;font-size:11px;text-transform:uppercase;letter-spacing:.06em;}.value{font-weight:600;}.row{display:flex;gap:32px;flex-wrap:wrap;margin-top:10px;}.qr-box{background:#020617;border-radius:16px;border:1px solid #1e293b;padding:16px;text-align:center;}.qr-box img{max-width:220px;display:block;margin:0 auto 8px;}.btn-print{margin-top:18px;padding:10px 18px;border:none;border-radius:999px;background:#3b82f6;color:#fff;font-weight:600;font-size:14px;cursor:pointer;}</style></head><body><div class="wrap"><h1>Квитанция на пополнение баланса</h1><div class="block"><div class="label">Получатель</div><div class="value">ООО «Форсаж»</div><div>ИНН 7728282160, КПП 773001001</div><div>Банк: ООО Банк Точка, БИК 044525104</div><div>Счёт: 40702810101500033019</div><div>Корр. счёт: 30101810745374525104</div></div><div class="row"><div class="block" style="flex:1 1 260px;"><div class="label">Плательщик</div><div class="value">ID${USER_ID} ${USERNAME}</div><div class="label" style="margin-top:10px;">Назначение платежа</div><div>${purpose}</div><div class="label" style="margin-top:10px;">Сумма</div><div class="value" style="font-size:18px;">${amount.toLocaleString('ru-RU')} ₽</div><div style="color:#9ca3af;font-size:12px;">В т.ч. НДС ${vat.toLocaleString('ru-RU')} ₽ (22%)</div><div style="margin-top:10px;font-size:12px;color:#9ca3af;">Дата формирования: ${new Date().toLocaleDateString('ru-RU')}</div></div><div class="qr-box"><img src="${qrUrl}" alt="QR-код для оплаты"><div style="font-size:12px;color:#9ca3af;">Отсканируйте в приложении банка для оплаты</div></div></div><button class="btn-print" onclick="window.print()">Печать</button></div></body></html>`);
-    w.document.close();
+    const langParam = (window.__LANG === 'en') ? '&lang=en' : '';
+    window.open('receipt_topup.php?amount=' + amount + langParam, '_blank', 'noopener,noreferrer');
+}
+function topupSubmitProof(ev) {
+    ev.preventDefault();
+    const form = document.getElementById('topup-confirm-form');
+    const amount = parseInt(document.getElementById('topup-confirm-amount').value, 10) || 0;
+    const file = document.getElementById('topup-confirm-file').files[0];
+    const msg = document.getElementById('topup-confirm-msg');
+    if (!amount) { msg.style.color = '#ef4444'; msg.textContent = (window.__LANG==='en')?'Choose an amount':'Выберите сумму'; return; }
+    if (!file) { msg.style.color = '#ef4444'; msg.textContent = (window.__LANG==='en')?'Attach a payment proof file':'Прикрепите файл подтверждения'; return; }
+    msg.style.color = '#475569';
+    msg.textContent = (window.__LANG==='en') ? 'Uploading…' : 'Отправляем…';
+    const fd = new FormData(form);
+    fetch('topup_handler.php', { method: 'POST', body: fd })
+        .then(r => r.json().catch(() => ({success:false, msg:'Bad response'})))
+        .then(d => {
+            if (d.success) {
+                msg.style.color = '#16a34a';
+                msg.textContent = (window.__LANG==='en')
+                    ? 'Submitted. Your balance will be credited after review.'
+                    : 'Отправлено. Баланс пополнится после проверки.';
+                setTimeout(() => { closeTopupModal(); location.reload(); }, 1800);
+            } else {
+                msg.style.color = '#ef4444';
+                msg.textContent = d.msg || ((window.__LANG==='en')?'Error':'Ошибка');
+            }
+        })
+        .catch(() => {
+            msg.style.color = '#ef4444';
+            msg.textContent = (window.__LANG==='en') ? 'Network error' : 'Ошибка связи';
+        });
 }
 function withdrawApplication(appId) {
     if (!confirm('Вы уверены, что хотите отозвать заявку?')) return;

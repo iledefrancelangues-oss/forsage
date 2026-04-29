@@ -95,13 +95,13 @@ header{position:fixed;top:0;left:0;right:0;height:80px;background:#e5e4e2;displa
 .lang-btn.active{background:#1e293b;color:#fff;border-color:#1e293b}
 .btn-login{background:#0088cc;color:#fff;border:none;padding:9px 18px;border-radius:8px;font-weight:900;cursor:pointer;font-size:13px;white-space:nowrap}
 .btn-login:hover{background:#0077b3}
-.burger-trigger{display:none;cursor:pointer;width:42px;height:42px;align-items:center;justify-content:center;background:#0088cc;border:none;border-radius:10px;flex-shrink:0;box-shadow:0 4px 12px rgba(0,136,204,.35);color:#ffffff;-webkit-tap-highlight-color:transparent}
-.burger-trigger:hover,.burger-trigger:active{background:#0077b3}
-.burger-trigger i,.burger-trigger svg{color:#ffffff!important;stroke:#ffffff!important;stroke-width:2.5!important;width:24px!important;height:24px!important;display:block}
+.burger-trigger{display:none;cursor:pointer;width:44px;height:44px;align-items:center;justify-content:center;background:transparent;border:none;flex-shrink:0;color:#ffffff;-webkit-tap-highlight-color:transparent;padding:0}
+.burger-trigger:hover,.burger-trigger:active{background:transparent}
+.burger-trigger i,.burger-trigger svg{color:#ffffff!important;stroke:#ffffff!important;stroke-width:2.5!important;width:30px!important;height:30px!important;display:block}
 #mobileMenu{position:fixed;top:0;left:0;right:0;bottom:0;background:#fff;z-index:2001;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;overflow-y:auto;transform:translateX(100%);transition:transform .35s ease}
 #mobileMenu.open{transform:translateX(0)}
-.mob-close{position:absolute;top:18px;right:18px;cursor:pointer;width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;background:#0088cc;border:none;border-radius:10px;box-shadow:0 4px 12px rgba(0,136,204,.35);color:#fff;-webkit-tap-highlight-color:transparent}
-.mob-close i,.mob-close svg{color:#fff!important;stroke:#fff!important;stroke-width:2.5!important;width:26px!important;height:26px!important}
+.mob-close{position:absolute;top:18px;right:18px;cursor:pointer;width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;background:transparent;border:none;color:#1e293b;-webkit-tap-highlight-color:transparent;padding:0}
+.mob-close i,.mob-close svg{color:#1e293b!important;stroke:#1e293b!important;stroke-width:2.5!important;width:30px!important;height:30px!important}
 .mob-nav-link{display:block;text-decoration:none;color:#1e293b;font-size:20px;font-weight:800;padding:14px 0;text-align:center;width:100%;border-bottom:1px solid #f1f5f9}
 .mob-nav-link:hover{color:#0088cc}
 .mob-lang-block{display:flex;gap:10px;margin:24px 0 10px}
