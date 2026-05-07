@@ -9,6 +9,7 @@ if (isset($_GET['lang'])) {
     $_SESSION['lang'] = ($_GET['lang'] === 'en') ? 'en' : 'ru';
 }
 $lang = $_SESSION['lang'];
+$IS_HOME_PAGE = (basename($_SERVER['SCRIPT_NAME'] ?? '') === 'index.php');
 
 if (!function_exists('t')) {
     /**
