@@ -1081,27 +1081,27 @@ $jsdate        = addslashes($lot['datecreated'] ?? ($lot['date_created'] ?? ($lo
                         </td>
                         <td>
                             <?php
-                            $jsTitle = addslashes($l['title'] ?? '');
-                            $jsDesc  = addslashes((string)($l['description'] ?? ''));
+                            $scLotData = json_encode([
+                                'id'             => (int)$l['id'],
+                                'title'          => (string)($l['title'] ?? ''),
+                                'description'    => (string)($l['description'] ?? ''),
+                                'start_price'    => (float)($l['start_price'] ?? 0),
+                                'price'          => (float)($l['price'] ?? 0),
+                                'bid_step'       => (int)($l['bid_step'] ?? 0),
+                                'timer_start'    => (int)($l['timer_start'] ?? 0),
+                                'timer_add'      => (int)($l['timer_add'] ?? 0),
+                                'deposit'        => (float)($l['deposit'] ?? 0),
+                                'end_time'       => (string)($l['end_time'] ?? ''),
+                                'max_end_time'   => (string)($l['max_end_time'] ?? ''),
+                                'started_at'     => (string)($l['started_at'] ?? ''),
+                                'auction_status' => (string)($l['auction_status'] ?? 'active'),
+                                'trade_status'   => (string)($l['trade_status'] ?? 'active'),
+                            ], JSON_UNESCAPED_UNICODE);
                             ?>
-                            <button
-                                onclick="return openEditScandinavianModal(
-                                    <?= (int)$l['id'] ?>,
-                                    '<?= $jsTitle ?>',
-                                    `<?= str_replace('`', "\`", $jsDesc) ?>`,
-                                    '<?= (float)$l['start_price'] ?>',
-                                    '<?= (float)$l['price'] ?>',
-                                    '<?= (int)$l['bid_step'] ?>',
-                                    '<?= (int)($l['timer_start'] ?? 0) ?>',
-                                    '<?= (int)$l['timer_add'] ?>',
-                                    '<?= (float)($l['deposit'] ?? 0) ?>',
-                                    '<?= htmlspecialchars($l['end_time'] ?? '', ENT_QUOTES, 'UTF-8') ?>',
-                                    '<?= htmlspecialchars($l['max_end_time'] ?? '', ENT_QUOTES, 'UTF-8') ?>',
-                                    '<?= htmlspecialchars($l['started_at'] ?? '', ENT_QUOTES, 'UTF-8') ?>',
-                                    '<?= htmlspecialchars($l['auction_status'] ?? 'active', ENT_QUOTES, 'UTF-8') ?>',
-                                    '<?= htmlspecialchars($l['trade_status'] ?? 'active', ENT_QUOTES, 'UTF-8') ?>'
-                                );"
-                                class="btn btn-warning btn-sm" title="Редактировать">✎</button>
+                            <button type="button"
+                                class="btn btn-warning btn-sm sc-edit-btn"
+                                data-sc-lot="<?= htmlspecialchars($scLotData, ENT_QUOTES, 'UTF-8') ?>"
+                                title="Редактировать">✎</button>
                             <form method="POST" style="display:inline;" onsubmit="return confirm('Удалить скандинавский лот «<?= addslashes($l['title'] ?? '') ?>»? Это необратимо.');">
                                 <input type="hidden" name="lot_id" value="<?= (int)$l['id'] ?>">
                                 <input type="hidden" name="action" value="delete_scandinavian">
@@ -1341,26 +1341,39 @@ function closeEditLotModal() {
     document.getElementById('editLotModal').classList.remove('active');
 }
 
-function openEditScandinavianModal(id, title, description, startPrice, price, bidStep, timerStart, timerAdd, deposit, endTime, maxEndTime, startedAt, auctionStatus, tradeStatus) {
-    document.getElementById('esc_lot_id').value = id;
-    document.getElementById('esc_title').value = title || '';
-    document.getElementById('esc_description').value = description || '';
-    document.getElementById('esc_start_price').value = startPrice;
-    document.getElementById('esc_price').value = price;
-    document.getElementById('esc_bid_step').value = bidStep;
-    document.getElementById('esc_timer_start').value = timerStart;
-    document.getElementById('esc_timer_add').value = timerAdd;
-    document.getElementById('esc_deposit').value = deposit;
-    document.getElementById('esc_end_time').value = endTime || '';
-    document.getElementById('esc_max_end_time').value = maxEndTime || '';
-    document.getElementById('esc_started_at').value = startedAt || '';
+function openEditScandinavianModalFromData(d) {
+    if (!d) return;
+    document.getElementById('esc_lot_id').value = d.id;
+    document.getElementById('esc_title').value = d.title || '';
+    document.getElementById('esc_description').value = d.description || '';
+    document.getElementById('esc_start_price').value = d.start_price;
+    document.getElementById('esc_price').value = d.price;
+    document.getElementById('esc_bid_step').value = d.bid_step;
+    document.getElementById('esc_timer_start').value = d.timer_start;
+    document.getElementById('esc_timer_add').value = d.timer_add;
+    document.getElementById('esc_deposit').value = d.deposit;
+    document.getElementById('esc_end_time').value = d.end_time || '';
+    document.getElementById('esc_max_end_time').value = d.max_end_time || '';
+    document.getElementById('esc_started_at').value = d.started_at || '';
     var as = document.getElementById('esc_auction_status');
-    if (as) as.value = auctionStatus || 'active';
+    if (as) as.value = d.auction_status || 'active';
     var ts = document.getElementById('esc_trade_status');
-    if (ts) ts.value = tradeStatus || 'active';
+    if (ts) ts.value = d.trade_status || 'active';
     document.getElementById('editScandinavianModal').classList.add('active');
-    return false;
 }
+
+document.addEventListener('click', function(e) {
+    var btn = e.target.closest && e.target.closest('.sc-edit-btn');
+    if (!btn) return;
+    e.preventDefault();
+    try {
+        var data = JSON.parse(btn.getAttribute('data-sc-lot') || '{}');
+        openEditScandinavianModalFromData(data);
+    } catch (err) {
+        console.error('sc-edit-btn parse error:', err);
+        alert('Ошибка парсинга данных лота: ' + err.message);
+    }
+});
 
 function closeEditScandinavianModal() {
     document.getElementById('editScandinavianModal').classList.remove('active');
