@@ -820,29 +820,21 @@ td.price-cell {
 
     <!-- Редактировать -->
     <?php
-$jstitle       = addslashes($lot['title'] ?? '');
-$jscategory    = addslashes($lot['lottype'] ?? ($lot['category'] ?? ''));
-$jsregion      = addslashes($lot['region'] ?? '');
-$jsdescription = addslashes($lot['description'] ?? '');
-$jsstatus      = addslashes($lot['status'] ?? '');
-$jsdate        = addslashes($lot['datecreated'] ?? ($lot['date_created'] ?? ($lot['date'] ?? '')));
-?>
-<button
-    onclick="return openEditLotModal(
-        <?= (int)$lot['id'] ?>,
-        '<?= $jstitle ?>',
-        '<?= $jscategory ?>',
-        '<?= (float)$lot['price'] ?>',
-        '<?= $jsregion ?>',
-        '<?= $jsdescription ?>',
-        '<?= $jsstatus ?>',
-        '<?= $jsdate ?>'
-    );"
-    class="btn btn-warning btn-sm"
-    title="Редактировать"
->
-    ✎
-</button>
+    $lotPayload = json_encode([
+        'id'          => (int)$lot['id'],
+        'title'       => (string)($lot['title'] ?? ''),
+        'category'    => (string)($lot['lottype'] ?? ($lot['category'] ?? '')),
+        'price'       => (float)($lot['price'] ?? 0),
+        'region'      => (string)($lot['region'] ?? ''),
+        'description' => (string)($lot['description'] ?? ''),
+        'status'      => (string)($lot['status'] ?? ''),
+        'datecreated' => (string)($lot['datecreated'] ?? ($lot['date_created'] ?? ($lot['date'] ?? ''))),
+    ], JSON_UNESCAPED_UNICODE);
+    ?>
+    <button type="button"
+        class="btn btn-warning btn-sm lot-edit-btn"
+        data-lot="<?= htmlspecialchars($lotPayload, ENT_QUOTES, 'UTF-8') ?>"
+        title="Редактировать">✎</button>
     <!-- Фото -->
     <a href="torgi_photos.php?id=<?= (int)$lot['id'] ?>"
        class="btn btn-secondary btn-sm"
@@ -1322,6 +1314,19 @@ function closeDeleteModal() {
 // Комиссионные лоты
 document.getElementById('selectAllCommission')?.addEventListener('change', function(e) {
     document.querySelectorAll('.lotCheckbox').forEach(cb => cb.checked = e.target.checked);
+});
+
+document.addEventListener('click', function(e) {
+    var btn = e.target.closest && e.target.closest('.lot-edit-btn');
+    if (!btn) return;
+    e.preventDefault();
+    try {
+        var d = JSON.parse(btn.getAttribute('data-lot') || '{}');
+        openEditLotModal(d.id, d.title, d.category, d.price, d.region, d.description, d.status, d.datecreated);
+    } catch (err) {
+        console.error('lot-edit-btn parse error:', err);
+        alert('Ошибка парсинга данных лота: ' + err.message);
+    }
 });
 
 function openEditLotModal(id, title, category, price, region, description, status, datecreated) {
