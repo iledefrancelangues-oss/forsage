@@ -27,6 +27,13 @@ try {
         $_SESSION['user_name'] = $user['full_name'] ?: $user['username'];
         $_SESSION['username'] = $user['username'];
         $_SESSION['user_balance'] = $user['balance'] ?? 0;
+        // Role / user_type for admin gates (admin_only.php, torgi_view.php и т.п.)
+        $_SESSION['role']     = $user['role']      ?? 'user';
+        $_SESSION['usertype'] = $user['user_type'] ?? 'user';
+        if (($user['role'] ?? '') === 'admin' || ($user['user_type'] ?? '') === 'admin') {
+            $_SESSION['role']     = 'admin';
+            $_SESSION['usertype'] = 'admin';
+        }
 
         echo json_encode(['success' => true]);
     } else {
