@@ -222,7 +222,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     $stmt = $pdo->prepare("UPDATE torgi SET images = ? WHERE id = ?");
     $stmt->execute([json_encode($images, JSON_UNESCAPED_UNICODE), $lotId]);
 
-    } elseif ($_POST['action'] === 'edit_scandinavian') {
+    $_SESSION['admin_msg'] = 'Лот и фото обновлены';
+    header("Location: admin.php?tab=commission");
+    exit;
+
+} elseif ($_POST['action'] === 'edit_scandinavian') {
     $lotId = (int)($_POST['lot_id'] ?? 0);
     if ($lotId <= 0) {
         $_SESSION['admin_msg'] = '⚠️ Не задан ID лота';
