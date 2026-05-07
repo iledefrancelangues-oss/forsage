@@ -1,7 +1,7 @@
 <?php
 session_start();
 // Включаем отображение ошибок, чтобы если что-то пойдет не так, мы видели причину, а не просто 500
-ini_set('display_errors', 1);
+ini_set('display_errors', '0');
 error_reporting(E_ALL);
 
 include 'db.php';

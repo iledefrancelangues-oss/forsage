@@ -6,9 +6,8 @@ require_once 'db.php';
 require_once 'finances.php';
 date_default_timezone_set('Europe/Moscow');
 
-if (empty($_SESSION['user_id'])) { header('Location: index.php'); exit; }
+require_once __DIR__ . '/admin_only.php';
 
-// Простая проверка — только Admin (id=1) или добавь роль admin в users
 $admin_id = (int)$_SESSION['user_id'];
 $me = $pdo->prepare("SELECT id, username FROM users WHERE id = ?");
 $me->execute([$admin_id]);

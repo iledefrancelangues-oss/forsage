@@ -1,22 +1,15 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
 session_start();
 header('Content-Type: text/html; charset=utf-8');
 
 include 'db.php';
+require_once __DIR__ . '/admin_only.php';
 require_once __DIR__ . '/db_schema_extra.php';
 
-// Принудительная установка кодировки
 $pdo->exec("SET NAMES utf8mb4");
 $pdo->exec("SET CHARACTER SET utf8mb4");
 
 $tab = $_GET['tab'] ?? 'users';
-
-if (!isset($_SESSION['user_id'])) {
-    header('Location: index.php');
-    exit;
-}
 
 // Обработка действий
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
