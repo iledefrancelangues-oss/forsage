@@ -1203,6 +1203,8 @@ $jsdate        = addslashes($lot['datecreated'] ?? ($lot['date_created'] ?? ($lo
             </div>
         </form>
     </div>
+</div>
+
 <!-- Модалка редактирования скандинавского лота -->
 <div id="editScandinavianModal" class="modal">
     <div class="modal-content" style="max-width:640px;">
@@ -1280,8 +1282,6 @@ $jsdate        = addslashes($lot['datecreated'] ?? ($lot['date_created'] ?? ($lo
             </div>
         </form>
     </div>
-</div>
-
 </div>
 
 <script>
