@@ -96,8 +96,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         echo json_encode(['success' => true, 'msg' => "Комиссия {$rate}% сохранена"]);
 
+    } elseif ($action === 'set_setting') {
+        // Универсальный set: один ключ или батч. Список разрешённых ключей — whitelist:
+        $allowed = [
+            'organizer_bonus_pct'         => ['min'=>0,'max'=>50],
+            'platform_commission_pct'     => ['min'=>0,'max'=>50],
+            'bid_respected_reg_cost'      => ['min'=>0,'max'=>100000],
+            'bid_respected_cash'          => ['min'=>0,'max'=>100000],
+            'bid_respected_balance'       => ['min'=>0,'max'=>100000],
+            'bid_respected_pack_size'     => ['min'=>1,'max'=>1000],
+            'bid_respected_pack_discount' => ['min'=>0,'max'=>90],
+            'bid_responsible_reg_cost'    => ['min'=>0,'max'=>1000000],
+            'bid_responsible_cash'        => ['min'=>0,'max'=>100000],
+            'bid_responsible_balance'     => ['min'=>0,'max'=>100000],
+            'bid_responsible_pack_size'   => ['min'=>1,'max'=>1000],
+            'bid_responsible_pack_discount'=>['min'=>0,'max'=>90],
+        ];
+        $pdo->exec("CREATE TABLE IF NOT EXISTS system_settings (skey VARCHAR(64) PRIMARY KEY, sval VARCHAR(255) NOT NULL, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        $changes = [];
+        $stmt = $pdo->prepare("REPLACE INTO system_settings (skey, sval) VALUES (?, ?)");
+        foreach ($allowed as $key => $rng) {
+            if (!array_key_exists($key, $_POST)) continue;
+            $val = (float)$_POST[$key];
+            $val = max($rng['min'], min($rng['max'], $val));
+            $stmt->execute([$key, (string)$val]);
+            $changes[$key] = $val;
+        }
+        if (!$changes) { echo json_encode(['error' => 'Нет допустимых полей для сохранения']); exit; }
+        echo json_encode(['success' => true, 'msg' => 'Сохранено', 'changes' => $changes]);
+
     } elseif ($action === 'set_organizer_bonus') {
-        $pct = max(0, min(50, (float)($_POST['pct'] ?? 10)));
+        // Легаси-алиас для старого клиентского кода.
+        $pct = max(0, min(50, (float)($_POST['pct'] ?? 15)));
         $pdo->exec("CREATE TABLE IF NOT EXISTS system_settings (skey VARCHAR(64) PRIMARY KEY, sval VARCHAR(255) NOT NULL, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
         $pdo->prepare("REPLACE INTO system_settings (skey, sval) VALUES ('organizer_bonus_pct', ?)")->execute([$pct]);
         echo json_encode(['success' => true, 'msg' => "Бонус организатора {$pct}% сохранён"]);
@@ -127,13 +157,31 @@ try {
     foreach ($rows as $r) { $user_comm[(int)$r['user_id']] = (float)$r['rate_pct']; }
 } catch (Throwable $e) {}
 
-/* Бонус организатора (из system_settings, fallback 10%) */
-$organizer_bonus_pct = 10;
+/* Настройки платформы из system_settings (с дефолтами) */
+$defaults = [
+    'organizer_bonus_pct'           => 15,
+    'bid_respected_reg_cost'        => 0,
+    'bid_respected_cash'            => 2490,
+    'bid_respected_balance'         => 1990,
+    'bid_respected_pack_size'       => 20,
+    'bid_respected_pack_discount'   => 25,
+    'bid_responsible_reg_cost'      => 8000,
+    'bid_responsible_cash'          => 1890,
+    'bid_responsible_balance'       => 1490,
+    'bid_responsible_pack_size'     => 20,
+    'bid_responsible_pack_discount' => 40,
+];
+$settings = $defaults;
 try {
     $pdo->exec("CREATE TABLE IF NOT EXISTS system_settings (skey VARCHAR(64) PRIMARY KEY, sval VARCHAR(255) NOT NULL, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-    $v = $pdo->query("SELECT sval FROM system_settings WHERE skey='organizer_bonus_pct'")->fetchColumn();
-    if ($v !== false && $v !== null) $organizer_bonus_pct = (float)$v;
+    $rows = $pdo->query("SELECT skey, sval FROM system_settings")->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($rows as $r) {
+        if (array_key_exists($r['skey'], $defaults) && is_numeric($r['sval'])) {
+            $settings[$r['skey']] = (float)$r['sval'];
+        }
+    }
 } catch (Throwable $e) {}
+$organizer_bonus_pct = $settings['organizer_bonus_pct'];
 ?>
 <!DOCTYPE html>
 <html lang="ru">
@@ -147,10 +195,20 @@ try {
         body { background:#0f172a; color:#fff; font-family:sans-serif; margin:0; padding:24px 16px; }
         h2 { font-size:20px; margin:0 0 24px; }
 
-        .comm-grid {
-            display:grid; grid-template-columns:1fr 1fr; gap:14px;
-            margin-bottom:24px;
-        }
+        .settings-section { margin-bottom:24px; }
+        .settings-h { margin:0 0 12px; font-size:15px; color:#cbd5e1; font-weight:700; }
+        .settings-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+        .settings-card { background:#1e293b; border:1px solid #334155; border-radius:14px; padding:16px 18px; }
+        .settings-card-title { font-size:14px; font-weight:700; color:#fff; margin-bottom:10px; }
+        .settings-card-sub { font-size:11px; font-weight:400; color:#64748b; }
+        .settings-label { display:block; font-size:11px; color:#94a3b8; margin:0 0 4px; text-transform:uppercase; letter-spacing:.4px; }
+        .settings-row { display:flex; align-items:center; gap:8px; }
+        .settings-row-2 { display:grid; grid-template-columns:1fr 1fr; gap:10px 14px; }
+        .settings-input { width:100%; padding:8px 10px; border-radius:8px; background:#0f172a; border:1px solid #334155; color:#fff; font-size:14px; text-align:left; }
+        .settings-input:focus { outline:none; border-color:#3b82f6; }
+        .settings-suffix { color:#64748b; font-size:13px; flex-shrink:0; min-width:18px; }
+        .settings-hint { color:#64748b; font-size:11px; margin:6px 0 10px; line-height:1.4; }
+        .settings-msg { display:inline-block; margin-left:10px; font-size:12px; font-weight:600; }
         .global-comm {
             background:#1e293b; border:1px solid #334155; border-radius:14px;
             padding:16px 20px; margin:0;
@@ -202,7 +260,12 @@ try {
             body { padding:14px 10px; }
             h2 { font-size:18px; margin-bottom:16px; }
 
-            .comm-grid { grid-template-columns:1fr; gap:10px; margin-bottom:18px; }
+            .settings-grid { grid-template-columns:1fr; gap:10px; }
+            .settings-section { margin-bottom:16px; }
+            .settings-card { padding:12px 14px; }
+            .settings-row-2 { grid-template-columns:1fr; gap:8px; }
+            .settings-input { font-size:16px; } /* iOS без зума */
+            .settings-card .btn { width:100%; }
             .global-comm {
                 padding:12px 14px;
                 gap:10px;
@@ -286,21 +349,90 @@ try {
 <a class="back-link" href="reestr.php">← Реестр</a>
 <h2>👥 Управление пользователями</h2>
 
-<!-- Комиссии и бонус организатора -->
-<div class="comm-grid">
-    <div class="global-comm">
-        <label>Глобальная комиссия площадки:</label>
-        <input type="number" id="global-rate" value="<?= htmlspecialchars((string)$global_comm) ?>" min="0" max="50" step="0.5">
-        <span style="color:#64748b;">%</span>
-        <button class="btn btn-blue btn-sm" onclick="setGlobalComm()">Сохранить</button>
-        <span id="comm-msg" style="font-size:12px;color:#4ade80;"></span>
+<!-- ── Настройки платформы (комиссии, бонус организатора, тарифы ставок) ── -->
+<div class="settings-section">
+    <h3 class="settings-h">⚙️ Комиссии и бонусы</h3>
+    <div class="settings-grid">
+        <div class="settings-card">
+            <label class="settings-label">Глобальная комиссия площадки</label>
+            <div class="settings-row">
+                <input type="number" id="global-rate" class="settings-input" value="<?= htmlspecialchars((string)$global_comm) ?>" min="0" max="50" step="0.5">
+                <span class="settings-suffix">%</span>
+            </div>
+            <p class="settings-hint">Удерживается с организатора с выручки лота (если для лота/юзера не задано индивидуально).</p>
+            <button class="btn btn-blue btn-sm" onclick="setGlobalComm()">Сохранить</button>
+            <span id="comm-msg" class="settings-msg"></span>
+        </div>
+        <div class="settings-card">
+            <label class="settings-label">Бонус организатора</label>
+            <div class="settings-row">
+                <input type="number" id="organizer-bonus" class="settings-input" value="<?= htmlspecialchars((string)$organizer_bonus_pct) ?>" min="0" max="50" step="0.5">
+                <span class="settings-suffix">%</span>
+            </div>
+            <p class="settings-hint">% от выручки со всех проданных ставок аукциона — начисляется организатору.</p>
+            <button class="btn btn-blue btn-sm" onclick="setOrganizerBonus()">Сохранить</button>
+            <span id="bonus-msg" class="settings-msg"></span>
+        </div>
     </div>
-    <div class="global-comm">
-        <label>Бонус организатора (от выручки со ставок):</label>
-        <input type="number" id="organizer-bonus" value="<?= htmlspecialchars((string)$organizer_bonus_pct) ?>" min="0" max="50" step="0.5">
-        <span style="color:#64748b;">%</span>
-        <button class="btn btn-blue btn-sm" onclick="setOrganizerBonus()">Сохранить</button>
-        <span id="bonus-msg" style="font-size:12px;color:#4ade80;"></span>
+</div>
+
+<div class="settings-section">
+    <h3 class="settings-h">⚡ Тарифы скандинавских ставок</h3>
+    <div class="settings-grid">
+        <div class="settings-card">
+            <div class="settings-card-title">🤝 Уважаемый <span class="settings-card-sub">(бесплатная регистрация)</span></div>
+            <div class="settings-row-2">
+                <div>
+                    <label class="settings-label">Регистрация</label>
+                    <div class="settings-row"><input type="number" id="resp-reg" class="settings-input" value="<?= htmlspecialchars((string)$settings['bid_respected_reg_cost']) ?>" min="0" step="100"><span class="settings-suffix">₽</span></div>
+                </div>
+                <div>
+                    <label class="settings-label">Ставка наличкой / QR</label>
+                    <div class="settings-row"><input type="number" id="resp-cash" class="settings-input" value="<?= htmlspecialchars((string)$settings['bid_respected_cash']) ?>" min="0" step="10"><span class="settings-suffix">₽</span></div>
+                </div>
+                <div>
+                    <label class="settings-label">Ставка с баланса</label>
+                    <div class="settings-row"><input type="number" id="resp-balance" class="settings-input" value="<?= htmlspecialchars((string)$settings['bid_respected_balance']) ?>" min="0" step="10"><span class="settings-suffix">₽</span></div>
+                </div>
+                <div>
+                    <label class="settings-label">Размер пакета</label>
+                    <div class="settings-row"><input type="number" id="resp-packsz" class="settings-input" value="<?= htmlspecialchars((string)$settings['bid_respected_pack_size']) ?>" min="1" step="1"><span class="settings-suffix">шт</span></div>
+                </div>
+                <div>
+                    <label class="settings-label">Скидка пакета</label>
+                    <div class="settings-row"><input type="number" id="resp-packdisc" class="settings-input" value="<?= htmlspecialchars((string)$settings['bid_respected_pack_discount']) ?>" min="0" max="90" step="1"><span class="settings-suffix">%</span></div>
+                </div>
+            </div>
+            <button class="btn btn-blue btn-sm" onclick="saveRespectedTariff()" style="margin-top:10px;">Сохранить тариф «Уважаемый»</button>
+            <span id="resp-msg" class="settings-msg"></span>
+        </div>
+        <div class="settings-card">
+            <div class="settings-card-title">✅ Ответственный <span class="settings-card-sub">(платная регистрация)</span></div>
+            <div class="settings-row-2">
+                <div>
+                    <label class="settings-label">Регистрация</label>
+                    <div class="settings-row"><input type="number" id="resb-reg" class="settings-input" value="<?= htmlspecialchars((string)$settings['bid_responsible_reg_cost']) ?>" min="0" step="500"><span class="settings-suffix">₽</span></div>
+                </div>
+                <div>
+                    <label class="settings-label">Ставка наличкой / QR</label>
+                    <div class="settings-row"><input type="number" id="resb-cash" class="settings-input" value="<?= htmlspecialchars((string)$settings['bid_responsible_cash']) ?>" min="0" step="10"><span class="settings-suffix">₽</span></div>
+                </div>
+                <div>
+                    <label class="settings-label">Ставка с баланса</label>
+                    <div class="settings-row"><input type="number" id="resb-balance" class="settings-input" value="<?= htmlspecialchars((string)$settings['bid_responsible_balance']) ?>" min="0" step="10"><span class="settings-suffix">₽</span></div>
+                </div>
+                <div>
+                    <label class="settings-label">Размер пакета</label>
+                    <div class="settings-row"><input type="number" id="resb-packsz" class="settings-input" value="<?= htmlspecialchars((string)$settings['bid_responsible_pack_size']) ?>" min="1" step="1"><span class="settings-suffix">шт</span></div>
+                </div>
+                <div>
+                    <label class="settings-label">Скидка пакета</label>
+                    <div class="settings-row"><input type="number" id="resb-packdisc" class="settings-input" value="<?= htmlspecialchars((string)$settings['bid_responsible_pack_discount']) ?>" min="0" max="90" step="1"><span class="settings-suffix">%</span></div>
+                </div>
+            </div>
+            <button class="btn btn-blue btn-sm" onclick="saveResponsibleTariff()" style="margin-top:10px;">Сохранить тариф «Ответственный»</button>
+            <span id="resb-msg" class="settings-msg"></span>
+        </div>
     </div>
 </div>
 
@@ -535,8 +667,36 @@ function removeRestrict() {
 <script>
 function setOrganizerBonus() {
     const pct = document.getElementById('organizer-bonus').value;
-    post({action:'set_organizer_bonus', user_id:1, pct}, d => {
+    post({action:'set_setting', user_id:1, organizer_bonus_pct:pct}, d => {
         const m = document.getElementById('bonus-msg');
+        m.textContent = d.success ? '✅ Сохранено' : ('❌ ' + (d.error||d.msg));
+        m.style.color = d.success ? '#4ade80' : '#f87171';
+    });
+}
+function saveRespectedTariff() {
+    post({
+        action:'set_setting', user_id:1,
+        bid_respected_reg_cost:        document.getElementById('resp-reg').value,
+        bid_respected_cash:            document.getElementById('resp-cash').value,
+        bid_respected_balance:         document.getElementById('resp-balance').value,
+        bid_respected_pack_size:       document.getElementById('resp-packsz').value,
+        bid_respected_pack_discount:   document.getElementById('resp-packdisc').value,
+    }, d => {
+        const m = document.getElementById('resp-msg');
+        m.textContent = d.success ? '✅ Сохранено' : ('❌ ' + (d.error||d.msg));
+        m.style.color = d.success ? '#4ade80' : '#f87171';
+    });
+}
+function saveResponsibleTariff() {
+    post({
+        action:'set_setting', user_id:1,
+        bid_responsible_reg_cost:      document.getElementById('resb-reg').value,
+        bid_responsible_cash:          document.getElementById('resb-cash').value,
+        bid_responsible_balance:       document.getElementById('resb-balance').value,
+        bid_responsible_pack_size:     document.getElementById('resb-packsz').value,
+        bid_responsible_pack_discount: document.getElementById('resb-packdisc').value,
+    }, d => {
+        const m = document.getElementById('resb-msg');
         m.textContent = d.success ? '✅ Сохранено' : ('❌ ' + (d.error||d.msg));
         m.style.color = d.success ? '#4ade80' : '#f87171';
     });

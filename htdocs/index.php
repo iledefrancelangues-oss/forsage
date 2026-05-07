@@ -256,20 +256,7 @@ body > footer img[alt="Форсаж"] {
     opacity: 1 !important;
 }
 
-/* --- Кнопка «Наверх» — фикс справа внизу ---------------------------------- */
-#to-top {
-    position: fixed; right: 22px; bottom: 22px; z-index: 60;
-    width: 52px; height: 52px; border-radius: 50%; border: 1px solid rgba(56,189,248,.5);
-    background: linear-gradient(135deg, #0088cc, #38bdf8);
-    color: #fff; cursor: pointer;
-    box-shadow: 0 12px 30px rgba(8, 145, 178, .45), 0 0 24px rgba(56,189,248,.5);
-    display: flex; align-items: center; justify-content: center;
-    opacity: 0; pointer-events: none; transform: translateY(12px);
-    transition: opacity .25s ease, transform .25s ease, box-shadow .25s ease;
-}
-#to-top.visible { opacity: 1; pointer-events: auto; transform: translateY(0); }
-#to-top:hover { box-shadow: 0 16px 38px rgba(8, 145, 178, .65), 0 0 32px rgba(56,189,248,.8); transform: translateY(-3px); }
-@media (max-width: 480px) { #to-top { right: 14px; bottom: 14px; width: 46px; height: 46px; } }
+/* Кнопка «Наверх» вынесена в header.php (общая для сайта). */
 
 /* --- Подсказка про интерактивность 3D ------------------------------------ */
 .drag-hint {
@@ -438,13 +425,6 @@ body > footer img[alt="Форсаж"] {
     <span><?= $lang === 'en' ? 'Drag to rotate the scene' : 'Потяните, чтобы вращать сцену' ?></span>
 </div>
 
-<!-- Кнопка «Наверх» — фикс справа внизу, появляется после прокрутки. -->
-<button id="to-top" type="button" aria-label="<?= $lang === 'en' ? 'Back to top' : 'Наверх' ?>" title="<?= $lang === 'en' ? 'Back to top' : 'Наверх' ?>">
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-         stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 19V5"/><path d="M5 12l7-7 7 7"/>
-    </svg>
-</button>
 
 <?php /* auth_modal.php уже подключён в header.php, не дублируем. */ ?>
 
@@ -460,17 +440,10 @@ window.dispatchEvent(new Event('three-ready'));
 </script>
 
 <script>
-/* Шапка темнеет после прокрутки на ~80px, кнопка «Наверх» — после ~400px. */
-const toTopBtn = document.getElementById('to-top');
+/* Шапка темнеет после прокрутки на ~80px (кнопка «Наверх» — в header.php). */
 window.addEventListener('scroll', () => {
     document.body.classList.toggle('scrolled', window.scrollY > 80);
-    if (toTopBtn) toTopBtn.classList.toggle('visible', window.scrollY > 400);
 }, { passive: true });
-if (toTopBtn) {
-    toTopBtn.addEventListener('click', () => {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
-}
 
 /* Решаем, нужно ли вообще пытаться рисовать 3D. */
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
