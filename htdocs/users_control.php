@@ -123,6 +123,7 @@ $global_comm = $pdo->query(
     <title>Управление пользователями — ERA ETP</title>
     <style>
         *, *::before, *::after { box-sizing: border-box; }
+        html, body { max-width:100%; overflow-x:hidden; }
         body { background:#0f172a; color:#fff; font-family:sans-serif; margin:0; padding:24px 16px; }
         h2 { font-size:20px; margin:0 0 24px; }
 
@@ -133,7 +134,7 @@ $global_comm = $pdo->query(
         }
         .global-comm label { font-size:13px; color:#94a3b8; }
         .global-comm input { width:80px; padding:8px; border-radius:8px; background:#0f172a; border:1px solid #334155; color:#fff; font-size:15px; text-align:center; }
-        .btn { padding:9px 18px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:13px; transition:background 0.2s; }
+        .btn { padding:9px 18px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:13px; transition:background 0.2s; min-height:36px; }
         .btn-blue   { background:#3b82f6; color:#fff; }
         .btn-blue:hover { background:#2563eb; }
         .btn-red    { background:#ef4444; color:#fff; }
@@ -144,12 +145,13 @@ $global_comm = $pdo->query(
         .btn-green:hover { background:#16a34a; }
         .btn-gray   { background:#334155; color:#94a3b8; }
         .btn-gray:hover { background:#3d5068; color:#fff; }
-        .btn-sm { padding:6px 12px; font-size:12px; }
+        .btn-sm { padding:6px 12px; font-size:12px; min-height:32px; }
 
-        table { width:100%; border-collapse:collapse; font-size:13px; }
-        th { background:#0f172a; padding:10px 12px; text-align:left; color:#64748b; font-size:11px; text-transform:uppercase; letter-spacing:1px; }
-        td { padding:10px 12px; border-bottom:1px solid #1e293b; vertical-align:middle; }
-        tr:hover td { background:#1a2540; }
+        .table-card-wrap { background:#1e293b; border:1px solid #334155; border-radius:16px; overflow:hidden; }
+        table.users-table { width:100%; border-collapse:collapse; font-size:13px; }
+        .users-table th { background:#0f172a; padding:10px 12px; text-align:left; color:#64748b; font-size:11px; text-transform:uppercase; letter-spacing:1px; }
+        .users-table td { padding:10px 12px; border-bottom:1px solid #1e293b; vertical-align:middle; }
+        .users-table tr:hover td { background:#1a2540; }
 
         .badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:bold; }
         .badge-respected   { background:#1e3a5f; color:#60a5fa; }
@@ -159,10 +161,10 @@ $global_comm = $pdo->query(
 
         .actions { display:flex; gap:6px; flex-wrap:wrap; }
 
-        /* Модалка бана */
+        /* Модалки */
         .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:100; justify-content:center; align-items:center; padding:16px; }
         .modal-overlay.open { display:flex; }
-        .modal-box { background:#1e293b; border:1px solid #334155; border-radius:16px; padding:24px; width:100%; max-width:400px; }
+        .modal-box { background:#1e293b; border:1px solid #334155; border-radius:16px; padding:24px; width:100%; max-width:400px; max-height:90vh; overflow-y:auto; -webkit-overflow-scrolling:touch; }
         .modal-box h3 { margin:0 0 16px; font-size:16px; }
         .field { width:100%; padding:10px 14px; border-radius:8px; background:#0f172a; border:1px solid #334155; color:#fff; font-size:14px; margin-bottom:10px; outline:none; }
         .field:focus { border-color:#3b82f6; }
@@ -170,6 +172,88 @@ $global_comm = $pdo->query(
 
         .back-link { display:inline-block; margin-bottom:20px; color:#64748b; font-size:13px; text-decoration:none; }
         .back-link:hover { color:#94a3b8; }
+
+        /* ── Mobile (≤768px): таблица превращается в карточки ── */
+        @media (max-width: 768px) {
+            body { padding:14px 10px; }
+            h2 { font-size:18px; margin-bottom:16px; }
+
+            .global-comm {
+                padding:12px 14px;
+                gap:10px;
+                flex-direction:column;
+                align-items:stretch;
+            }
+            .global-comm label { font-size:12px; }
+            .global-comm input { width:100%; max-width:140px; }
+            .global-comm .btn { width:100%; min-height:40px; }
+            .global-comm > span { display:none; }
+
+            .table-card-wrap { background:transparent; border:none; border-radius:0; overflow:visible; }
+            .users-table, .users-table tbody, .users-table tr, .users-table td { display:block; width:100%; }
+            .users-table thead { display:none; }
+            .users-table tr {
+                background:#1e293b;
+                border:1px solid #334155;
+                border-radius:14px;
+                padding:14px;
+                margin-bottom:12px;
+            }
+            .users-table tr:hover td { background:transparent; }
+            .users-table td {
+                padding:8px 0;
+                border-bottom:1px dashed #334155;
+                display:flex;
+                justify-content:space-between;
+                align-items:flex-start;
+                gap:10px;
+                text-align:right;
+                font-size:13px;
+                min-height:34px;
+            }
+            .users-table td:last-child { border-bottom:none; padding-bottom:0; }
+            .users-table td::before {
+                content: attr(data-label);
+                color:#64748b;
+                font-size:11px;
+                text-transform:uppercase;
+                letter-spacing:0.5px;
+                font-weight:bold;
+                flex-shrink:0;
+                text-align:left;
+                padding-top:3px;
+                min-width:80px;
+            }
+            .users-table td.cell-actions {
+                flex-direction:column;
+                align-items:stretch;
+                text-align:left;
+                padding-top:12px;
+            }
+            .users-table td.cell-actions::before {
+                margin-bottom:8px;
+                padding-top:0;
+            }
+            .users-table td.cell-actions .actions {
+                flex-direction:column;
+                gap:8px;
+            }
+            .users-table td.cell-actions .btn { width:100%; min-height:44px; font-size:13px; }
+
+            /* Модалки — максимум места на мобилке */
+            .modal-overlay { padding:10px; align-items:flex-start; padding-top:24px; }
+            .modal-box { padding:18px; border-radius:14px; max-height:calc(100vh - 48px); }
+            .modal-box h3 { font-size:15px; margin-bottom:12px; }
+            .modal-box .btn { min-height:44px; }
+            .modal-box .field { font-size:16px; } /* против iOS auto-zoom */
+        }
+
+        @media (max-width: 380px) {
+            body { padding:10px 8px; }
+            .global-comm { padding:10px; }
+            .users-table tr { padding:12px; }
+            .users-table td::before { min-width:70px; font-size:10px; }
+        }
     </style>
 </head>
 <body>
@@ -187,8 +271,8 @@ $global_comm = $pdo->query(
 </div>
 
 <!-- Таблица пользователей -->
-<div style="background:#1e293b;border:1px solid #334155;border-radius:16px;overflow:hidden;">
-    <table>
+<div class="table-card-wrap">
+    <table class="users-table">
         <thead>
             <tr>
                 <th>ID</th>
@@ -203,26 +287,26 @@ $global_comm = $pdo->query(
         <tbody>
         <?php foreach ($users as $u): ?>
         <tr>
-            <td style="color:#64748b;"><?= $u['id'] ?></td>
-            <td>
+            <td data-label="ID" style="color:#64748b;"><?= $u['id'] ?></td>
+            <td data-label="Логин">
                 <b><?= htmlspecialchars($u['username']) ?></b>
                 <?php if ($u['email']): ?>
                 <div style="font-size:11px;color:#64748b;"><?= htmlspecialchars($u['email']) ?></div>
                 <?php endif; ?>
             </td>
-            <td>
+            <td data-label="Статус">
                 <span class="badge badge-<?= $u['user_type'] ?>">
                     <?= $u['user_type'] === 'respected' ? '🤝 Уважаемый' : '✅ Ответственный' ?>
                 </span>
             </td>
-            <td>
+            <td data-label="Баланс">
                 <?= number_format((int)$u['balance'], 0, '.', ' ') ?>&nbsp;₽
                 <?php if ($u['bid_pack_remaining'] > 0): ?>
                 <div style="font-size:11px;color:#f59e0b;">📦 <?= $u['bid_pack_remaining'] ?> ставок</div>
                 <?php endif; ?>
             </td>
-            <td><?= $u['total_bids'] ?></td>
-            <td>
+            <td data-label="Ставок"><?= $u['total_bids'] ?></td>
+            <td data-label="Бан">
                 <?php if ($u['ban_type'] === 'hard'): ?>
                     <span class="badge badge-hard-ban">🔴 Жёсткий</span>
                     <div style="font-size:11px;color:#f87171;margin-top:3px;"><?= htmlspecialchars(mb_substr($u['ban_reason'],0,40)) ?></div>
@@ -233,7 +317,7 @@ $global_comm = $pdo->query(
                     <span style="color:#4ade80;font-size:12px;">✓ Активен</span>
                 <?php endif; ?>
             </td>
-            <td>
+            <td class="cell-actions" data-label="Действия">
                 <div class="actions">
                     <?php if ($u['user_type'] === 'respected'): ?>
                     <button class="btn btn-green btn-sm"
