@@ -96,6 +96,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         echo json_encode(['success' => true, 'msg' => "Комиссия {$rate}% сохранена"]);
 
+    } elseif ($action === 'set_organizer_bonus') {
+        $pct = max(0, min(50, (float)($_POST['pct'] ?? 10)));
+        $pdo->exec("CREATE TABLE IF NOT EXISTS system_settings (skey VARCHAR(64) PRIMARY KEY, sval VARCHAR(255) NOT NULL, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        $pdo->prepare("REPLACE INTO system_settings (skey, sval) VALUES ('organizer_bonus_pct', ?)")->execute([$pct]);
+        echo json_encode(['success' => true, 'msg' => "Бонус организатора {$pct}% сохранён"]);
+
     } else {
         echo json_encode(['error' => 'Неизвестное действие']);
     }
@@ -113,6 +119,21 @@ $users = $pdo->query(
 $global_comm = $pdo->query(
     "SELECT rate_pct FROM commission_settings WHERE user_id IS NULL AND lot_id IS NULL LIMIT 1"
 )->fetchColumn() ?: 5;
+
+/* Индивидуальные комиссии по юзерам */
+$user_comm = [];
+try {
+    $rows = $pdo->query("SELECT user_id, rate_pct FROM commission_settings WHERE user_id IS NOT NULL AND lot_id IS NULL")->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($rows as $r) { $user_comm[(int)$r['user_id']] = (float)$r['rate_pct']; }
+} catch (Throwable $e) {}
+
+/* Бонус организатора (из system_settings, fallback 10%) */
+$organizer_bonus_pct = 10;
+try {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS system_settings (skey VARCHAR(64) PRIMARY KEY, sval VARCHAR(255) NOT NULL, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    $v = $pdo->query("SELECT sval FROM system_settings WHERE skey='organizer_bonus_pct'")->fetchColumn();
+    if ($v !== false && $v !== null) $organizer_bonus_pct = (float)$v;
+} catch (Throwable $e) {}
 ?>
 <!DOCTYPE html>
 <html lang="ru">
@@ -126,9 +147,13 @@ $global_comm = $pdo->query(
         body { background:#0f172a; color:#fff; font-family:sans-serif; margin:0; padding:24px 16px; }
         h2 { font-size:20px; margin:0 0 24px; }
 
+        .comm-grid {
+            display:grid; grid-template-columns:1fr 1fr; gap:14px;
+            margin-bottom:24px;
+        }
         .global-comm {
             background:#1e293b; border:1px solid #334155; border-radius:14px;
-            padding:16px 20px; margin-bottom:24px;
+            padding:16px 20px; margin:0;
             display:flex; align-items:center; gap:16px; flex-wrap:wrap;
         }
         .global-comm label { font-size:13px; color:#94a3b8; }
@@ -177,6 +202,7 @@ $global_comm = $pdo->query(
             body { padding:14px 10px; }
             h2 { font-size:18px; margin-bottom:16px; }
 
+            .comm-grid { grid-template-columns:1fr; gap:10px; margin-bottom:18px; }
             .global-comm {
                 padding:12px 14px;
                 gap:10px;
@@ -260,13 +286,22 @@ $global_comm = $pdo->query(
 <a class="back-link" href="reestr.php">← Реестр</a>
 <h2>👥 Управление пользователями</h2>
 
-<!-- Глобальная комиссия -->
-<div class="global-comm">
-    <label>Глобальная комиссия площадки:</label>
-    <input type="number" id="global-rate" value="<?= $global_comm ?>" min="0" max="50" step="0.5">
-    <span style="color:#64748b;">%</span>
-    <button class="btn btn-blue btn-sm" onclick="setGlobalComm()">Сохранить</button>
-    <span id="comm-msg" style="font-size:12px;color:#4ade80;"></span>
+<!-- Комиссии и бонус организатора -->
+<div class="comm-grid">
+    <div class="global-comm">
+        <label>Глобальная комиссия площадки:</label>
+        <input type="number" id="global-rate" value="<?= htmlspecialchars((string)$global_comm) ?>" min="0" max="50" step="0.5">
+        <span style="color:#64748b;">%</span>
+        <button class="btn btn-blue btn-sm" onclick="setGlobalComm()">Сохранить</button>
+        <span id="comm-msg" style="font-size:12px;color:#4ade80;"></span>
+    </div>
+    <div class="global-comm">
+        <label>Бонус организатора (от выручки со ставок):</label>
+        <input type="number" id="organizer-bonus" value="<?= htmlspecialchars((string)$organizer_bonus_pct) ?>" min="0" max="50" step="0.5">
+        <span style="color:#64748b;">%</span>
+        <button class="btn btn-blue btn-sm" onclick="setOrganizerBonus()">Сохранить</button>
+        <span id="bonus-msg" style="font-size:12px;color:#4ade80;"></span>
+    </div>
 </div>
 
 <!-- Таблица пользователей -->
@@ -335,6 +370,10 @@ $global_comm = $pdo->query(
                     <button class="btn btn-gray btn-sm"
                         onclick="openRestrict(<?= $u['id'] ?>, <?= isset($u['soft_bid_limit']) ? (int)$u['soft_bid_limit'] : 'null' ?>)">
                         🎯 Лимит ставок
+                    </button>
+                    <button class="btn btn-blue btn-sm"
+                        onclick="openComm(<?= $u['id'] ?>, '<?= htmlspecialchars($u['username'], ENT_QUOTES) ?>', <?= isset($user_comm[(int)$u['id']]) ? $user_comm[(int)$u['id']] : 'null' ?>)">
+                        💼 Комиссия<?php if (isset($user_comm[(int)$u['id']])): ?> <?= rtrim(rtrim(number_format($user_comm[(int)$u['id']], 1, '.', ''), '0'), '.') ?>%<?php endif; ?>
                     </button>
                 </div>
             </td>
@@ -475,5 +514,56 @@ function removeRestrict() {
     });
 }
 </script>
+<!-- Модалка индивидуальной комиссии юзера -->
+<div class="modal-overlay" id="comm-modal" onclick="if(event.target===this)this.classList.remove('open')">
+    <div class="modal-box">
+        <h3>💼 Комиссия для <span id="comm-username"></span></h3>
+        <p style="font-size:13px;color:#94a3b8;margin:0 0 14px;">
+            Индивидуальная ставка комиссии для этого пользователя. Пусто җ будет использоваться глобальная.
+        </p>
+        <input type="hidden" id="comm-uid">
+        <label style="font-size:12px;color:#64748b;">Ставка комиссии (%):</label>
+        <input class="field" type="number" id="comm-rate" value="5" min="0" max="50" step="0.5">
+        <div style="display:flex;gap:10px;margin-top:4px;">
+            <button class="btn btn-blue" style="flex:1;" onclick="submitUserComm()">Сохранить</button>
+            <button class="btn btn-gray" style="flex:1;" onclick="document.getElementById('comm-modal').classList.remove('open')">Отмена</button>
+        </div>
+        <div id="comm-msg-out" style="min-height:20px;font-size:13px;font-weight:bold;text-align:center;margin-top:8px;"></div>
+    </div>
+</div>
+
+<script>
+function setOrganizerBonus() {
+    const pct = document.getElementById('organizer-bonus').value;
+    post({action:'set_organizer_bonus', user_id:1, pct}, d => {
+        const m = document.getElementById('bonus-msg');
+        m.textContent = d.success ? '✅ Сохранено' : ('❌ ' + (d.error||d.msg));
+        m.style.color = d.success ? '#4ade80' : '#f87171';
+    });
+}
+function openComm(uid, username, currentRate) {
+    document.getElementById('comm-uid').value = uid;
+    document.getElementById('comm-username').textContent = username;
+    document.getElementById('comm-rate').value = currentRate !== null ? currentRate : 5;
+    document.getElementById('comm-msg-out').textContent = '';
+    document.getElementById('comm-modal').classList.add('open');
+}
+function submitUserComm() {
+    const uid  = document.getElementById('comm-uid').value;
+    const rate = document.getElementById('comm-rate').value;
+    post({action:'set_commission', user_id:uid, rate, for_user_id:uid, lot_id_comm:''}, d => {
+        const m = document.getElementById('comm-msg-out');
+        if (d.success) {
+            m.style.color = '#4ade80';
+            m.textContent = d.msg || '✅ Сохранено';
+            setTimeout(() => location.reload(), 700);
+        } else {
+            m.style.color = '#f87171';
+            m.textContent = d.error || d.msg;
+        }
+    });
+}
+</script>
+
 </body>
 </html>

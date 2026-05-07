@@ -31,7 +31,27 @@ define('BID_PRICES', [
 ]);
 
 // Бонус организатора: % от выручки со ставок поверх цены лота
-define('ORGANIZER_BONUS_PCT', 0.10);   // 10%
+// Дефолт 10% — переопределяется из system_settings.organizer_bonus_pct (users_control.php).
+if (!defined('ORGANIZER_BONUS_PCT_DEFAULT')) define('ORGANIZER_BONUS_PCT_DEFAULT', 0.10);
+
+function getOrganizerBonusPct(): float {
+    static $cached = null;
+    if ($cached !== null) return $cached;
+    $cached = ORGANIZER_BONUS_PCT_DEFAULT;
+    try {
+        if (isset($GLOBALS['pdo']) && $GLOBALS['pdo'] instanceof PDO) {
+            $v = $GLOBALS['pdo']->query("SELECT sval FROM system_settings WHERE skey='organizer_bonus_pct'")->fetchColumn();
+            if ($v !== false && $v !== null && is_numeric($v)) {
+                $cached = max(0, min(50, (float)$v)) / 100.0;
+            }
+        }
+    } catch (Throwable $e) {}
+    return $cached;
+}
+
+if (!defined('ORGANIZER_BONUS_PCT')) {
+    define('ORGANIZER_BONUS_PCT', getOrganizerBonusPct());
+}
 
 /**
  * Возвращает стоимость одной ставки для пользователя.
