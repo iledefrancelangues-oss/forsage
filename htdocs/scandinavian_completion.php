@@ -6,7 +6,7 @@
 
 // Включаем отображение ошибок для отладки (можно убрать после исправления)
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', '0');
 
 function processScandinavianAuctionCompletion($pdo, $lot_id) {
     try {

@@ -1,10 +1,19 @@
 <?php
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', '0');
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
+
+if (!isset($_SESSION['lang'])) {
+    $accept_lang = $_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? 'ru';
+    $_SESSION['lang'] = (substr($accept_lang, 0, 2) === 'ru') ? 'ru' : 'en';
+}
+if (isset($_GET['lang'])) {
+    $_SESSION['lang'] = ($_GET['lang'] === 'en') ? 'en' : 'ru';
+}
+$lang = $_SESSION['lang'];
 
 require_once 'db.php';
 
@@ -391,13 +400,13 @@ $msg = $_SESSION['lot_msg'] ?? null;
 unset($_SESSION['lot_msg']);
 
 $status = trim((string)($lot['status'] ?? ''));
-$status_text = 'Статус: ' . $status;
+$status_text = ($lang === 'en' ? 'Status: ' : 'Статус: ') . $status;
 $status_color = '#64748b';
 if ($status === 'open') {
-    $status_text = 'Открыт для предложений';
+    $status_text = $lang === 'en' ? 'Open for offers' : 'Открыт для предложений';
     $status_color = '#16a34a';
 } elseif ($status === 'closed') {
-    $status_text = 'Сделка завершена';
+    $status_text = $lang === 'en' ? 'Deal closed' : 'Сделка завершена';
     $status_color = '#dc2626';
 }
 
@@ -965,7 +974,7 @@ include 'header.php';
 
 <main class="torgi-page" style="flex:1; padding:30px 20px;">
     <div class="torgi-wrap">
-        <a href="torgi_list.php" class="torgi-back">← Вернуться к списку</a>
+        <a href="torgi_list.php" class="torgi-back"><?= $lang === 'en' ? '← Back to listings' : '← Вернуться к списку' ?></a>
         <?php if ($msg): ?>
             <div class="torgi-alert"><?= e($msg) ?></div>
         <?php endif; ?>
@@ -992,48 +1001,48 @@ include 'header.php';
                         </div>
                     <?php endif; ?>
                 <?php else: ?>
-                    <div class="torgi-empty-photo">Фото ещё не загружены</div>
+                    <div class="torgi-empty-photo"><?= $lang === 'en' ? 'Photos have not been uploaded yet' : 'Фото ещё не загружены' ?></div>
                 <?php endif; ?>
                 <div class="torgi-actions">
-                    <div class="torgi-actions-title">Действия с лотом</div>
+                    <div class="torgi-actions-title"><?= $lang === 'en' ? 'Lot actions' : 'Действия с лотом' ?></div>
                     <div class="torgi-actions-grid">
-                        <button type="button" class="torgi-action-btn torgi-action-offer" onclick="openModal('offerModal')"><span>₽</span><span>Предложить цену</span></button>
-                        <button type="button" class="torgi-action-btn torgi-action-interest" onclick="openModal('interestModal')"><span>★</span><span>Интересует</span></button>
-                        <button type="button" class="torgi-action-btn torgi-action-contact" onclick="openModal('contactSellerModal')"><span>✉</span><span>Связаться</span></button>
-                        <button type="button" class="torgi-action-btn torgi-action-upgrade" onclick="openModal('upgradeModal')"><span>ℹ</span><span>Подробности</span></button>
+                        <button type="button" class="torgi-action-btn torgi-action-offer" onclick="openModal('offerModal')"><span>₽</span><span><?= $lang === 'en' ? 'Make an offer' : 'Предложить цену' ?></span></button>
+                        <button type="button" class="torgi-action-btn torgi-action-interest" onclick="openModal('interestModal')"><span>★</span><span><?= $lang === 'en' ? 'Interested' : 'Интересует' ?></span></button>
+                        <button type="button" class="torgi-action-btn torgi-action-contact" onclick="openModal('contactSellerModal')"><span>✉</span><span><?= $lang === 'en' ? 'Contact seller' : 'Связаться' ?></span></button>
+                        <button type="button" class="torgi-action-btn torgi-action-upgrade" onclick="openModal('upgradeModal')"><span>ℹ</span><span><?= $lang === 'en' ? 'Details' : 'Подробности' ?></span></button>
                     </div>
                 </div>
             </div>
             <!-- правая колонка -->
             <div>
                 <div class="torgi-card torgi-price-card">
-                    <div class="torgi-mini-label">Цена</div>
+                    <div class="torgi-mini-label"><?= $lang === 'en' ? 'Price' : 'Цена' ?></div>
                     <div class="torgi-price"><?= number_format((float)$lot['price'], 0, '.', ' ') ?> ₽</div>
                     <div class="torgi-status" style="color:<?= e($status_color) ?>;"><?= e($status_text) ?></div>
                     <div class="torgi-meta"><?= e($lot['region']) ?><?= $createdDate ? ', ' . e($createdDate) : '' ?></div>
                 </div>
                 <div class="torgi-soft torgi-info-card" style="margin-top:16px;">
                     <?php if ($can_edit): ?>
-                        <a href="torgi_edit.php?id=<?= (int)$lot['id'] ?>" class="torgi-edit-link">✏ Редактировать лот</a>
+                        <a href="torgi_edit.php?id=<?= (int)$lot['id'] ?>" class="torgi-edit-link">✏ <?= $lang === 'en' ? 'Edit lot' : 'Редактировать лот' ?></a>
                     <?php endif; ?>
                     <h1 class="torgi-title"><?= e($lot['title']) ?></h1>
                     <div class="torgi-info-grid">
-                        <div><strong>Категория</strong><span><?= e($lot['lot_type']) ?></span></div>
-                        <div><strong>Регион</strong><span><?= e($lot['region']) ?></span></div>
-                        <div><strong>Создан</strong><span><?= e($createdDate ?: '—') ?></span></div>
+                        <div><strong><?= $lang === 'en' ? 'Category' : 'Категория' ?></strong><span><?= e($lot['lot_type']) ?></span></div>
+                        <div><strong><?= $lang === 'en' ? 'Region' : 'Регион' ?></strong><span><?= e($lot['region']) ?></span></div>
+                        <div><strong><?= $lang === 'en' ? 'Created' : 'Создан' ?></strong><span><?= e($createdDate ?: '—') ?></span></div>
                         <div><strong>ID</strong><span>#<?= (int)$lot['id'] ?></span></div>
                     </div>
                 </div>
                 <?php if (!empty($lot['description'])): ?>
                     <div class="torgi-card torgi-desc-card" style="margin-top:16px;">
-                        <div class="torgi-desc-title">Описание лота</div>
+                        <div class="torgi-desc-title"><?= $lang === 'en' ? 'Lot description' : 'Описание лота' ?></div>
                         <div class="torgi-desc-text"><?= nl2br(e($lot['description'])) ?></div>
                     </div>
                 <?php endif; ?>
                 <!-- БЛОК PDF -->
                 <?php if (!empty($pdf_files)): ?>
                 <div class="torgi-card torgi-pdf-card">
-                    <div class="torgi-desc-title">📄 Документы и отчёты</div>
+                    <div class="torgi-desc-title">📄 <?= $lang === 'en' ? 'Documents and reports' : 'Документы и отчёты' ?></div>
                     <div class="pdf-list">
                         <?php foreach ($pdf_files as $pdf): ?>
                             <?php if ($pdf['access_level'] === 'public'): ?>
@@ -1043,12 +1052,12 @@ include 'header.php';
                             <?php elseif ($pdf['access_level'] === 'paid' && $has_paid_report): ?>
                                 <div class="pdf-item">
                                     <a href="<?= e($pdf['file_path']) ?>" target="_blank">🔓 <?= e($pdf['file_name']) ?></a>
-                                    <span style="font-size:12px; color:#16a34a;"> (доступен)</span>
+                                    <span style="font-size:12px; color:#16a34a;"> <?= $lang === 'en' ? '(available)' : '(доступен)' ?></span>
                                 </div>
                             <?php elseif ($pdf['access_level'] === 'paid' && !$has_paid_report): ?>
                                 <div class="pdf-item locked">
                                     <span>🔒 <?= e($pdf['file_name']) ?></span>
-                                    <button class="btn-buy-report" onclick="openModal('upgradeModal')">Купить отчёт</button>
+                                    <button class="btn-buy-report" onclick="openModal('upgradeModal')"><?= $lang === 'en' ? 'Buy report' : 'Купить отчёт' ?></button>
                                 </div>
                             <?php endif; ?>
                         <?php endforeach; ?>
@@ -1068,7 +1077,7 @@ include 'header.php';
         <?php if (count($images) > 1): ?>
             <button type="button" class="image-modal-btn left" onclick="changeModalImage(-1)">‹</button>
         <?php endif; ?>
-        <img src="" id="fullImage" alt="Полное изображение">
+        <img src="" id="fullImage" alt="<?= $lang === 'en' ? 'Full image' : 'Полное изображение' ?>">
         <?php if (count($images) > 1): ?>
             <button type="button" class="image-modal-btn right" onclick="changeModalImage(1)">›</button>
         <?php endif; ?>
@@ -1078,20 +1087,20 @@ include 'header.php';
 <div id="offerModal" class="modal">
     <div class="modal-content">
         <button type="button" class="modal-close" onclick="closeModal('offerModal')">×</button>
-        <h2 class="modal-title">Предложить свою цену</h2>
-        <p class="modal-subtitle">Отправьте продавцу своё предложение по этому лоту. Цена должна быть не ниже начальной (<span id="startPriceDisplay"><?= number_format((float)$lot['price'], 0, '.', ' ') ?></span> ₽).</p>
+        <h2 class="modal-title"><?= $lang === 'en' ? 'Make an offer' : 'Предложить свою цену' ?></h2>
+        <p class="modal-subtitle"><?= $lang === 'en' ? 'Send your offer to the seller. The price cannot be lower than the starting price (' : 'Отправьте продавцу своё предложение по этому лоту. Цена должна быть не ниже начальной (' ?><span id="startPriceDisplay"><?= number_format((float)$lot['price'], 0, '.', ' ') ?></span> ₽).</p>
         <form method="POST" enctype="multipart/form-data" id="offerForm">
             <input type="hidden" name="action" value="make_offer">
             <div class="form-group">
-                <label class="form-label" for="offer_price">Ваша цена, ₽</label>
+                <label class="form-label" for="offer_price"><?= $lang === 'en' ? 'Your price, ₽' : 'Ваша цена, ₽' ?></label>
                 <input class="form-input" type="text" id="offer_price" name="price" placeholder="Например, <?= number_format((float)$lot['price'] + 1000, 0, '.', ' ') ?>" required>
-                <div class="form-note" id="priceError" style="color:#dc2626; display:none;">Цена не может быть ниже начальной</div>
+                <div class="form-note" id="priceError" style="color:#dc2626; display:none;"><?= $lang === 'en' ? 'Price cannot be lower than the starting price' : 'Цена не может быть ниже начальной' ?></div>
             </div>
-            <div class="form-group"><label class="form-label" for="offer_comment">Комментарий</label><textarea class="form-textarea" id="offer_comment" name="comment" placeholder="Уточните условия, сроки, детали предложения"></textarea></div>
-            <div class="form-group"><label class="form-label" for="offer_file">Файл (необязательно)</label><input class="form-input" type="file" id="offer_file" name="offer_file" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx"><div class="form-note">До 3 МБ.</div></div>
+            <div class="form-group"><label class="form-label" for="offer_comment"><?= $lang === 'en' ? 'Comment' : 'Комментарий' ?></label><textarea class="form-textarea" id="offer_comment" name="comment" placeholder="<?= $lang === 'en' ? 'Specify the terms, timeline, details of your offer' : 'Уточните условия, сроки, детали предложения' ?>"></textarea></div>
+            <div class="form-group"><label class="form-label" for="offer_file"><?= $lang === 'en' ? 'File (optional)' : 'Файл (необязательно)' ?></label><input class="form-input" type="file" id="offer_file" name="offer_file" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx"><div class="form-note"><?= $lang === 'en' ? 'Up to 3 MB.' : 'До 3 МБ.' ?></div></div>
             <div class="btn-row">
-                <button type="button" class="btn btn-secondary" onclick="closeModal('offerModal')">Отмена</button>
-                <button type="submit" class="btn btn-primary" id="offerSubmitBtn">Отправить предложение</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal('offerModal')"><?= $lang === 'en' ? 'Cancel' : 'Отмена' ?></button>
+                <button type="submit" class="btn btn-primary" id="offerSubmitBtn"><?= $lang === 'en' ? 'Send offer' : 'Отправить предложение' ?></button>
             </div>
         </form>
     </div>
@@ -1100,22 +1109,22 @@ include 'header.php';
 <div id="interestModal" class="modal">
     <div class="modal-content">
         <button type="button" class="modal-close" onclick="closeModal('interestModal')">×</button>
-        <h2 class="modal-title">Заявка на осмотр</h2>
-        <p class="modal-subtitle">Укажите свои данные и удобный способ связи. Желаемая дата осмотра – не ранее чем через 3 рабочих дня (без учёта выходных).</p>
+        <h2 class="modal-title"><?= $lang === 'en' ? 'Inspection request' : 'Заявка на осмотр' ?></h2>
+        <p class="modal-subtitle"><?= $lang === 'en' ? 'Provide your details and a preferred way to reach you. The desired inspection date must be at least 3 business days away (excluding weekends).' : 'Укажите свои данные и удобный способ связи. Желаемая дата осмотра – не ранее чем через 3 рабочих дня (без учёта выходных).' ?></p>
         <form method="POST" enctype="multipart/form-data">
             <input type="hidden" name="action" value="interest">
-            <div class="form-group"><label class="form-label" for="interest_full_name">ФИО</label><input class="form-input" type="text" id="interest_full_name" name="full_name" required></div>
-            <div class="form-group"><label class="form-label" for="interest_reg_address">Адрес регистрации</label><textarea class="form-textarea" id="interest_reg_address" name="registration_address" required></textarea></div>
-            <div class="form-group"><label class="form-label" for="interest_message">Сообщение</label><textarea class="form-textarea" id="interest_message" name="message" placeholder="Напишите, когда хотите осмотреть лот" required></textarea></div>
-            <div class="form-group"><label class="form-label" for="interest_contact_type">Тип контакта</label><select class="form-select" id="interest_contact_type" name="contact_type"><option value="email">Email</option><option value="phone">Телефон</option><option value="telegram">Telegram</option><option value="whatsapp">WhatsApp</option></select></div>
-            <div class="form-group"><label class="form-label" for="interest_contact_value">Контактные данные</label><input class="form-input" type="text" id="interest_contact_value" name="contact_value" required></div>
-            <div class="form-group"><label class="form-label" for="inspection_date">Желаемая дата и время осмотра</label>
+            <div class="form-group"><label class="form-label" for="interest_full_name"><?= $lang === 'en' ? 'Full name' : 'ФИО' ?></label><input class="form-input" type="text" id="interest_full_name" name="full_name" required></div>
+            <div class="form-group"><label class="form-label" for="interest_reg_address"><?= $lang === 'en' ? 'Registration address' : 'Адрес регистрации' ?></label><textarea class="form-textarea" id="interest_reg_address" name="registration_address" required></textarea></div>
+            <div class="form-group"><label class="form-label" for="interest_message"><?= $lang === 'en' ? 'Message' : 'Сообщение' ?></label><textarea class="form-textarea" id="interest_message" name="message" placeholder="<?= $lang === 'en' ? 'Tell us when you would like to inspect the lot' : 'Напишите, когда хотите осмотреть лот' ?>" required></textarea></div>
+            <div class="form-group"><label class="form-label" for="interest_contact_type"><?= $lang === 'en' ? 'Contact type' : 'Тип контакта' ?></label><select class="form-select" id="interest_contact_type" name="contact_type"><option value="email">Email</option><option value="phone"><?= $lang === 'en' ? 'Phone' : 'Телефон' ?></option><option value="telegram">Telegram</option><option value="whatsapp">WhatsApp</option></select></div>
+            <div class="form-group"><label class="form-label" for="interest_contact_value"><?= $lang === 'en' ? 'Contact details' : 'Контактные данные' ?></label><input class="form-input" type="text" id="interest_contact_value" name="contact_value" required></div>
+            <div class="form-group"><label class="form-label" for="inspection_date"><?= $lang === 'en' ? 'Preferred inspection date and time' : 'Желаемая дата и время осмотра' ?></label>
                 <input class="form-input" type="datetime-local" id="inspection_date" name="inspection_date" min="<?= $minInspectionDate ?>">
             </div>
-            <div class="form-group"><label class="form-label" for="interest_file">Файл (необязательно)</label><input class="form-input" type="file" id="interest_file" name="interest_file" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"><div class="form-note">До 3 МБ.</div></div>
+            <div class="form-group"><label class="form-label" for="interest_file"><?= $lang === 'en' ? 'File (optional)' : 'Файл (необязательно)' ?></label><input class="form-input" type="file" id="interest_file" name="interest_file" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"><div class="form-note"><?= $lang === 'en' ? 'Up to 3 MB.' : 'До 3 МБ.' ?></div></div>
             <div class="btn-row">
-                <button type="button" class="btn btn-secondary" onclick="closeModal('interestModal')">Отмена</button>
-                <button type="submit" class="btn btn-primary">Отправить заявку</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal('interestModal')"><?= $lang === 'en' ? 'Cancel' : 'Отмена' ?></button>
+                <button type="submit" class="btn btn-primary"><?= $lang === 'en' ? 'Submit request' : 'Отправить заявку' ?></button>
             </div>
         </form>
     </div>
@@ -1124,16 +1133,16 @@ include 'header.php';
 <div id="contactSellerModal" class="modal">
     <div class="modal-content">
         <button type="button" class="modal-close" onclick="closeModal('contactSellerModal')">×</button>
-        <h2 class="modal-title">Связаться с продавцом</h2>
-        <p class="modal-subtitle">Оставьте сообщение и контакт для обратной связи.</p>
+        <h2 class="modal-title"><?= $lang === 'en' ? 'Contact the seller' : 'Связаться с продавцом' ?></h2>
+        <p class="modal-subtitle"><?= $lang === 'en' ? 'Leave a message and contact for follow-up.' : 'Оставьте сообщение и контакт для обратной связи.' ?></p>
         <form method="POST" enctype="multipart/form-data">
             <input type="hidden" name="action" value="contact_seller">
-            <div class="form-group"><label class="form-label" for="contact_message">Сообщение</label><textarea class="form-textarea" id="contact_message" name="message" required></textarea></div>
-            <div class="form-group"><label class="form-label" for="contact_value_main">Ваш контакт</label><input class="form-input" type="text" id="contact_value_main" name="contact" placeholder="Телефон, email, Telegram" required></div>
-            <div class="form-group"><label class="form-label" for="contact_file">Файл (необязательно)</label><input class="form-input" type="file" id="contact_file" name="contact_file" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"><div class="form-note">До 3 МБ.</div></div>
+            <div class="form-group"><label class="form-label" for="contact_message"><?= $lang === 'en' ? 'Message' : 'Сообщение' ?></label><textarea class="form-textarea" id="contact_message" name="message" required></textarea></div>
+            <div class="form-group"><label class="form-label" for="contact_value_main"><?= $lang === 'en' ? 'Your contact' : 'Ваш контакт' ?></label><input class="form-input" type="text" id="contact_value_main" name="contact" placeholder="<?= $lang === 'en' ? 'Phone, email, Telegram' : 'Телефон, email, Telegram' ?>" required></div>
+            <div class="form-group"><label class="form-label" for="contact_file"><?= $lang === 'en' ? 'File (optional)' : 'Файл (необязательно)' ?></label><input class="form-input" type="file" id="contact_file" name="contact_file" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"><div class="form-note"><?= $lang === 'en' ? 'Up to 3 MB.' : 'До 3 МБ.' ?></div></div>
             <div class="btn-row">
-                <button type="button" class="btn btn-secondary" onclick="closeModal('contactSellerModal')">Отмена</button>
-                <button type="submit" class="btn btn-primary">Отправить сообщение</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal('contactSellerModal')"><?= $lang === 'en' ? 'Cancel' : 'Отмена' ?></button>
+                <button type="submit" class="btn btn-primary"><?= $lang === 'en' ? 'Send message' : 'Отправить сообщение' ?></button>
             </div>
         </form>
     </div>
@@ -1142,52 +1151,52 @@ include 'header.php';
 <div id="upgradeModal" class="modal">
     <div class="modal-content">
         <button type="button" class="modal-close" onclick="closeModal('upgradeModal')">×</button>
-        <h2 class="modal-title">Получить подробности по лоту</h2>
-        <p class="modal-subtitle">Выберите тариф и способ оплаты. После оплаты загрузите квитанцию для проверки.</p>
+        <h2 class="modal-title"><?= $lang === 'en' ? 'Get lot details' : 'Получить подробности по лоту' ?></h2>
+        <p class="modal-subtitle"><?= $lang === 'en' ? 'Choose a plan and a payment method. After paying, upload the receipt for review.' : 'Выберите тариф и способ оплаты. После оплаты загрузите квитанцию для проверки.' ?></p>
         <div class="tariff-grid">
             <div class="tariff-card" data-tariff="details" onclick="selectTariff(this)">
-                <div class="tariff-name">Отчёт по лоту</div>
+                <div class="tariff-name"><?= $lang === 'en' ? 'Lot report' : 'Отчёт по лоту' ?></div>
                 <div class="tariff-price">1 390 ₽</div>
-                <div class="tariff-desc">Расширенная информация</div>
+                <div class="tariff-desc"><?= $lang === 'en' ? 'Extended information' : 'Расширенная информация' ?></div>
             </div>
             <div class="tariff-card" data-tariff="responsible" onclick="selectTariff(this)">
-                <div class="tariff-name">Статус «Ответственный»</div>
+                <div class="tariff-name"><?= $lang === 'en' ? '“Responsible” status' : 'Статус «Ответственный»' ?></div>
                 <div class="tariff-price">8 000 ₽</div>
-                <div class="tariff-desc">Приоритетное сопровождение</div>
+                <div class="tariff-desc"><?= $lang === 'en' ? 'Priority handling' : 'Приоритетное сопровождение' ?></div>
             </div>
         </div>
         <div id="paymentDetails" class="payment-details"></div>
         <div id="emailFieldBlock" style="display: none; margin:12px 0;">
-            <label class="form-label" for="user_email">Email для получения отчёта</label>
+            <label class="form-label" for="user_email"><?= $lang === 'en' ? 'Email to receive the report' : 'Email для получения отчёта' ?></label>
             <input type="email" id="user_email" class="form-input" value="<?= e($user_email_from_profile) ?>" placeholder="example@mail.ru" <?= $session_id > 0 ? 'readonly' : 'required' ?>>
             <?php if ($session_id > 0): ?>
-                <div class="form-note">Отчёт будет отправлен на email из профиля.</div>
+                <div class="form-note"><?= $lang === 'en' ? 'The report will be sent to the email from your profile.' : 'Отчёт будет отправлен на email из профиля.' ?></div>
             <?php else: ?>
-                <div class="form-note">На этот email отправим отчёт после подтверждения.</div>
+                <div class="form-note"><?= $lang === 'en' ? 'We will send the report to this email after confirmation.' : 'На этот email отправим отчёт после подтверждения.' ?></div>
             <?php endif; ?>
         </div>
         <div id="paymentMethods" class="payment-methods">
             <div class="payment-methods-grid">
-                <div id="paymentqr" class="payment-method selected" onclick="selectPaymentMethod('qr')">Оплата по QR</div>
-                <div id="paymentreceipt" class="payment-method" onclick="selectPaymentMethod('receipt')">Скачать квитанцию</div>
+                <div id="paymentqr" class="payment-method selected" onclick="selectPaymentMethod('qr')"><?= $lang === 'en' ? 'Pay by QR' : 'Оплата по QR' ?></div>
+                <div id="paymentreceipt" class="payment-method" onclick="selectPaymentMethod('receipt')"><?= $lang === 'en' ? 'Download receipt' : 'Скачать квитанцию' ?></div>
             </div>
-            <div id="qrblock" class="qr-block"><img id="qrimage" src=""><div>Отсканируйте QR в приложении</div></div>
-            <div id="receiptblock" class="receipt-reg-block"><button class="receipt-generate-btn" onclick="generateReceipt()">Сформировать квитанцию</button></div>
+            <div id="qrblock" class="qr-block"><img id="qrimage" src=""><div><?= $lang === 'en' ? 'Scan the QR code in your banking app' : 'Отсканируйте QR в приложении' ?></div></div>
+            <div id="receiptblock" class="receipt-reg-block"><button class="receipt-generate-btn" onclick="generateReceipt()"><?= $lang === 'en' ? 'Generate receipt' : 'Сформировать квитанцию' ?></button></div>
             <div id="receiptFormBlock" style="display:none; margin-top:12px; border-top:1px solid #e2e8f0; padding-top:14px;">
                 <form id="upgradeReceiptForm" method="POST" enctype="multipart/form-data">
                     <input type="hidden" name="action" value="submit_receipt">
                     <input type="hidden" name="tariff" id="receipttariff" value="">
                     <input type="hidden" name="amount" id="receiptamount" value="">
                     <input type="hidden" name="user_email" id="receipt_email" value="">
-                    <div class="form-group"><label for="receipt_file">Файл квитанции</label><input type="file" id="receipt_file" name="receipt_file" accept="image/*,application/pdf" required></div>
-                    <div class="form-group"><label for="receipt_comment">Комментарий</label><textarea id="receipt_comment" name="comment" rows="2"></textarea></div>
-                    <button type="submit" class="btn btn-primary" style="width:100%">Отправить на проверку</button>
+                    <div class="form-group"><label for="receipt_file"><?= $lang === 'en' ? 'Receipt file' : 'Файл квитанции' ?></label><input type="file" id="receipt_file" name="receipt_file" accept="image/*,application/pdf" required></div>
+                    <div class="form-group"><label for="receipt_comment"><?= $lang === 'en' ? 'Comment' : 'Комментарий' ?></label><textarea id="receipt_comment" name="comment" rows="2"></textarea></div>
+                    <button type="submit" class="btn btn-primary" style="width:100%"><?= $lang === 'en' ? 'Submit for review' : 'Отправить на проверку' ?></button>
                 </form>
                 <div id="upgradeSuccessBlock" class="success-block">...</div>
             </div>
             <div class="btn-row" id="actionButtons">
-                <button type="button" class="btn btn-secondary" onclick="closeModal('upgradeModal')">Отмена</button>
-                <button type="button" class="btn btn-primary" onclick="markAsPaid()">Я оплатил(а)</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal('upgradeModal')"><?= $lang === 'en' ? 'Cancel' : 'Отмена' ?></button>
+                <button type="button" class="btn btn-primary" onclick="markAsPaid()"><?= $lang === 'en' ? 'I have paid' : 'Я оплатил(а)' ?></button>
             </div>
         </div>
     </div>

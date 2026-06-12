@@ -1,22 +1,38 @@
+# Принудительный редирект HTTP → HTTPS (InfinityFree: nginx терминирует SSL и проксирует HTTP, поэтому проверяем X-Forwarded-Proto + HTTPS)
+RewriteEngine On
+RewriteCond %{HTTPS}                  !=on
+RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+RewriteCond %{HTTP:X-Forwarded-SSL}   !=on
+RewriteCond %{SERVER_PORT}            !=443
+RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
+
 # MIME-типы для PWA
 AddType application/manifest+json .webmanifest
 AddType application/json          .json
 
+# OAuth-провайдеры (Yandex / VK / ESIA) — env vars для PHP
+SetEnv YANDEX_CLIENT_ID 487b01ae0f414a0ca788e54af62da2a9
+SetEnv YANDEX_CLIENT_SECRET 7eec7f81a3f6455fb591bdfe56cf4a07
+SetEnv YANDEX_REDIRECT_URI https://forsage.ct.ws/yandex_callback.php
+
 <IfModule mod_headers.c>
-    # UTF-8 для манифеста (JSON по умолчанию UTF-8, но не все ридеры это уважают)
+    # UTF-8 для манифеста
     <FilesMatch "\.webmanifest$">
         Header set Content-Type "application/manifest+json; charset=utf-8"
         Header set Cache-Control "public, max-age=86400"
     </FilesMatch>
 
-    # Service-worker не должен кэшироваться браузером — иначе обновление не доедет
+    # Service-worker — не кэшировать, чтобы обновления доезжали
     <FilesMatch "service-worker\.js$">
         Header set Cache-Control "no-cache, no-store, must-revalidate"
         Header set Service-Worker-Allowed "/"
     </FilesMatch>
 
-    # Иконки и логотипы — год в кэше
+    # Иконки и логотипы — долгий кэш
     <FilesMatch "\.(png|jpg|jpeg|gif|webp|svg|ico|woff2?)$">
         Header set Cache-Control "public, max-age=31536000, immutable"
     </FilesMatch>
+
+    # HSTS — браузер сам форсит https следующие полгода
+    Header always set Strict-Transport-Security "max-age=15552000; includeSubDomains"
 </IfModule>

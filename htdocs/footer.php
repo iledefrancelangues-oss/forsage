@@ -1,18 +1,19 @@
 ﻿<?php
 if (session_status() === PHP_SESSION_NONE) session_start();
+if (!isset($lang)) $lang = $_SESSION['lang'] ?? 'ru';
 ?>
 <footer style="background:#1e293b;color:#94a3b8;padding:20px 5%;font-family:'Inter',sans-serif;width:100%;">
     <div style="max-width:1200px;margin:0 auto;display:flex;flex-wrap:wrap;gap:20px;align-items:center;justify-content:space-between;">
         <!-- Логотип слева + копирайт -->
         <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:flex-start;gap:6px;">
             <img src="logo-forsage-modified.png" alt="Форсаж" style="height:40px;width:auto;opacity:0.9;">
-            <div style="font-size:10px;color:#64748b;">© <?= date('Y') ?> ООО «Форсаж»</div>
+            <div style="font-size:10px;color:#64748b;"><?= $lang === 'en' ? '© ' . date('Y') . ' Forsage LLC' : '© ' . date('Y') . ' ООО «Форсаж»' ?></div>
         </div>
         
         <!-- Центр: ИНН/ОГРН и адрес -->
         <div style="flex:1;text-align:center;font-size:11px;display:flex;flex-direction:column;gap:4px;">
-            <div style="font-weight:600;">ИНН 7728282160 | ОГРН 1037728010396</div>
-            <div>г. Москва, ул. Киевская, д. 14, оф. 2а</div>
+            <div style="font-weight:600;"><?= $lang === 'en' ? 'TIN 7728282160 | OGRN 1037728010396' : 'ИНН 7728282160 | ОГРН 1037728010396' ?></div>
+            <div><?= $lang === 'en' ? 'Moscow, Kievskaya St. 14, office 2A' : 'г. Москва, ул. Киевская, д. 14, оф. 2а' ?></div>
         </div>
         
         <!-- Кнопка звонка справа -->
@@ -23,9 +24,9 @@ if (session_status() === PHP_SESSION_NONE) session_start();
         </div>
     </div>
     <div style="max-width:1200px;margin:8px auto 0;padding-top:12px;border-top:1px solid #334155;display:flex;flex-wrap:wrap;gap:16px;font-size:12px;">
-        <a href="user_agreement.php" style="color:#64748b;text-decoration:none;" onmouseover="this.style.color='#94a3b8'" onmouseout="this.style.color='#64748b'">Пользовательское соглашение</a>
-        <a href="personal_data.php" style="color:#64748b;text-decoration:none;" onmouseover="this.style.color='#94a3b8'" onmouseout="this.style.color='#64748b'">Обработка персональных данных</a>
-        <a href="cookie_policy.php" style="color:#64748b;text-decoration:none;" onmouseover="this.style.color='#94a3b8'" onmouseout="this.style.color='#64748b'">Политика Cookie</a>
-        <span style="margin-left:auto;color:#475569;">© 2024–2026 ООО «Форсаж» · ERA ETP · ФЗ-152</span>
+        <a href="user_agreement.php" style="color:#64748b;text-decoration:none;" onmouseover="this.style.color='#94a3b8'" onmouseout="this.style.color='#64748b'"><?= $lang === 'en' ? 'Terms of Service' : 'Пользовательское соглашение' ?></a>
+        <a href="personal_data.php" style="color:#64748b;text-decoration:none;" onmouseover="this.style.color='#94a3b8'" onmouseout="this.style.color='#64748b'"><?= $lang === 'en' ? 'Personal Data Processing' : 'Обработка персональных данных' ?></a>
+        <a href="cookie_policy.php" style="color:#64748b;text-decoration:none;" onmouseover="this.style.color='#94a3b8'" onmouseout="this.style.color='#64748b'"><?= $lang === 'en' ? 'Cookie Policy' : 'Политика Cookie' ?></a>
+        <span style="margin-left:auto;color:#475569;"><?= $lang === 'en' ? '© 2024–2026 Forsage LLC · ERA ETP · FZ-152' : '© 2024–2026 ООО «Форсаж» · ERA ETP · ФЗ-152' ?></span>
     </div>
 </footer>

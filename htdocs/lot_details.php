@@ -5,10 +5,20 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+if (!isset($_SESSION['lang'])) {
+    $accept_lang = $_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? 'ru';
+    $_SESSION['lang'] = (substr($accept_lang, 0, 2) === 'ru') ? 'ru' : 'en';
+}
+if (isset($_GET['lang'])) {
+    $_SESSION['lang'] = ($_GET['lang'] === 'en') ? 'en' : 'ru';
+}
+$lang = $_SESSION['lang'];
+
 include 'db.php';
 date_default_timezone_set('Europe/Moscow');
 
-$id      = 6;
+$id      = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+if ($id <= 0) { http_response_code(400); die($lang === 'en' ? 'Lot ID is not specified' : 'Не указан id лота'); }
 $user_id = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0;
 
 /* ── AJAX-эндпоинт ───────────────────────────────────── */
@@ -22,7 +32,7 @@ if (isset($_GET['ajax'])) {
         $l = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$l) {
-            echo json_encode(['error' => 'Лот не найден']);
+            echo json_encode(['error' => ($lang === 'en' ? 'Lot not found' : 'Лот не найден')]);
             exit;
         }
 
@@ -58,7 +68,7 @@ if (isset($_GET['ajax'])) {
             'end'        => $end_ts * 1000,
             'server_ts'  => time() * 1000,
             'started_ms' => $started_ms,
-            'html'       => $h ?: "<div style='padding:10px;color:#64748b;'>Ставок пока нет</div>",
+            'html'       => $h ?: ("<div style='padding:10px;color:#64748b;'>" . ($lang === 'en' ? 'No bids yet' : 'Ставок пока нет') . "</div>"),
             'leader'     => ($user_id > 0 && (int)$l['last_bid_user'] === $user_id),
             'is_over'    => $is_over,
             'log_exists' => $is_over && file_exists("logs/lot_{$id}.txt"),
@@ -66,7 +76,7 @@ if (isset($_GET['ajax'])) {
 
     } catch (Exception $e) {
         error_log('lot_details ajax error: ' . $e->getMessage());
-        echo json_encode(['error' => 'Ошибка сервера'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['error' => ($lang === 'en' ? 'Server error' : 'Ошибка сервера')], JSON_UNESCAPED_UNICODE);
     }
     exit;
 }
@@ -76,10 +86,10 @@ try {
     $stmt = $pdo->prepare("SELECT price, end_time, last_bid_user, started_at FROM lots WHERE id = ?");
     $stmt->execute([$id]);
     $lot = $stmt->fetch(PDO::FETCH_ASSOC);
-    if (!$lot) { http_response_code(404); die("Лот не найден."); }
+    if (!$lot) { http_response_code(404); die($lang === "en" ? "Lot not found." : "Лот не найден."); }
 } catch (Exception $e) {
     http_response_code(500);
-    die("Ошибка БД.");
+    die($lang === "en" ? "Database error." : "Ошибка БД.");
 }
 
 $end_ts    = (int)strtotime($lot['end_time']);
@@ -89,11 +99,11 @@ $min_bid    = (int)$lot['price'] + 1000;
 $started_ts = !empty($lot['started_at']) ? (int)strtotime($lot['started_at']) : 0;
 ?>
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="<?= htmlspecialchars($lang) ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Forsage LIVE — Лот №<?= $id ?></title>
+    <title>Forsage LIVE — <?= $lang === "en" ? "Lot №" : "Лот №" ?><?= $id ?></title>
     <style>
         *, *::before, *::after { box-sizing: border-box; }
 
@@ -252,29 +262,29 @@ $started_ts = !empty($lot['started_at']) ? (int)strtotime($lot['started_at']) : 
 </head>
 <body>
 <div class="card">
-    <div class="lot-label">Лот №<?= $id ?></div>
+    <div class="lot-label"><?= $lang === 'en' ? 'Lot №' : 'Лот №' ?><?= $id ?></div>
     <div class="lot-title">Tesla Model S (RESTART)</div>
 
     <div class="price" id="pr"><?= number_format((float)$lot['price'], 0, '.', "\u{00A0}") ?>&nbsp;₽</div>
 
     <div class="info-box">
         <div class="info-meta">
-            <span>Сервер: <span id="server-time"><?= date('H:i:s') ?></span></span>
+            <span><?= $lang === 'en' ? 'Server:' : 'Сервер:' ?> <span id="server-time"><?= date('H:i:s') ?></span></span>
             <span id="live-badge" style="color:<?= $is_active ? '#22c55e' : '#475569' ?>;">
-                <?= $is_active ? '● В ЭФИРЕ' : '● ЗАВЕРШЕНО' ?>
+                <?= $is_active ? ($lang === 'en' ? '● LIVE' : '● В ЭФИРЕ') : ($lang === 'en' ? '● ENDED' : '● ЗАВЕРШЕНО') ?>
             </span>
         </div>
-        <div class="timer-label">До завершения</div>
+        <div class="timer-label"><?= $lang === 'en' ? 'Time remaining' : 'До завершения' ?></div>
         <div class="timer<?= $is_active ? '' : ' ended' ?>" id="tm">
-            <?= $is_active ? '--:--:--' : 'ЗАВЕРШЕНО' ?>
+            <?= $is_active ? '--:--:--' : ($lang === 'en' ? 'ENDED' : 'ЗАВЕРШЕНО') ?>
         </div>
         <div class="leader-status" id="leader-status">
             <?php if ($is_leader): ?>
-                <span style="color:#4ade80;">● Ваша ставка лучшая</span>
+                <span style="color:#4ade80;"><?= $lang === 'en' ? '● Your bid is leading' : '● Ваша ставка лучшая' ?></span>
             <?php elseif ($user_id > 0): ?>
-                <span style="color:#f87171;">○ Ваша ставка перебита</span>
+                <span style="color:#f87171;"><?= $lang === 'en' ? '○ Your bid was outbid' : '○ Ваша ставка перебита' ?></span>
             <?php else: ?>
-                <span style="color:#64748b;">○ Войдите, чтобы участвовать</span>
+                <span style="color:#64748b;"><?= $lang === 'en' ? '○ Sign in to participate' : '○ Войдите, чтобы участвовать' ?></span>
             <?php endif; ?>
         </div>
     </div>
@@ -286,22 +296,22 @@ $started_ts = !empty($lot['started_at']) ? (int)strtotime($lot['started_at']) : 
            <?= (!$is_active || $is_leader) ? 'disabled' : '' ?>>
 
     <div id="bid-hint" style="font-size:12px;color:#64748b;margin:-4px 0 10px;text-align:center;">
-        Мин. ставка: <span id="hint-min"><?= number_format($min_bid, 0, '.', "\u{00A0}") ?></span>&nbsp;₽
-        &nbsp;·&nbsp; Шаг: <b style="color:#94a3b8;">1 000 ₽</b>
+        <?= $lang === 'en' ? 'Min bid:' : 'Мин. ставка:' ?> <span id="hint-min"><?= number_format($min_bid, 0, '.', "\u{00A0}") ?></span>&nbsp;₽
+        &nbsp;·&nbsp; <?= $lang === 'en' ? 'Step:' : 'Шаг:' ?> <b style="color:#94a3b8;">1 000 ₽</b>
     </div>
 
     <button id="bt" class="btn btn-primary"
         <?= (!$is_active || $is_leader) ? 'disabled' : '' ?>>
         <?php
-            if (!$is_active)    echo 'ТОРГИ ЗАВЕРШЕНЫ';
-            elseif ($is_leader) echo 'ВЫ ЛИДИРУЕТЕ';
-            else                echo 'СДЕЛАТЬ СТАВКУ';
+            if (!$is_active)    echo $lang === 'en' ? 'AUCTION ENDED' : 'ТОРГИ ЗАВЕРШЕНЫ';
+            elseif ($is_leader) echo $lang === 'en' ? 'YOU ARE LEADING' : 'ВЫ ЛИДИРУЕТЕ';
+            else                echo $lang === 'en' ? 'PLACE BID' : 'СДЕЛАТЬ СТАВКУ';
         ?>
     </button>
 
     <!-- Счётчик продолжительности торгов -->
     <div class="duration-box<?= $started_ts > 0 ? ($is_active ? ' active' : ' ended') : '' ?>" id="dur-box">
-        <span>Продолжительность торгов</span>
+        <span><?= $lang === 'en' ? 'Auction duration' : 'Продолжительность торгов' ?></span>
         <span class="dur-val" id="dur-val">
             <?php if ($started_ts > 0): ?>
                 <?php
@@ -318,20 +328,20 @@ $started_ts = !empty($lot['started_at']) ? (int)strtotime($lot['started_at']) : 
     </div>
 
     <div class="history">
-        <div class="history-title">Последние ставки</div>
-        <div id="hist"><div style="padding:10px;color:#64748b;text-align:center;font-size:13px;">Загрузка…</div></div>
+        <div class="history-title"><?= $lang === 'en' ? 'Recent bids' : 'Последние ставки' ?></div>
+        <div id="hist"><div style="padding:10px;color:#64748b;text-align:center;font-size:13px;"><?= $lang === 'en' ? 'Loading…' : 'Загрузка…' ?></div></div>
     </div>
 
     <div id="download-wrap">
         <?php if (!$is_active && file_exists("logs/lot_{$id}.txt")): ?>
             <a class="download-link" href="logs/lot_<?= $id ?>.txt" download>
-                ↓ Скачать историю торгов (.txt)
+                <?= $lang === 'en' ? '↓ Download auction history (.txt)' : '↓ Скачать историю торгов (.txt)' ?>
             </a>
         <?php endif; ?>
     </div>
 
     <a class="registry-link" href="https://forsage.ct.ws/reestr.php">
-        ← Вернуться в реестр лотов
+        <?= $lang === 'en' ? '← Back to lot registry' : '← Вернуться в реестр лотов' ?>
     </a>
 </div>
 
@@ -344,6 +354,31 @@ let endTime      = <?= $end_ts * 1000 ?>;
 let auctionEnded = <?= $is_active ? 'false' : 'true' ?>;
 let tickTimer    = null;
 let syncTimer    = null;
+
+window.LANG = "<?= htmlspecialchars($lang) ?>";
+const I18N = (window.LANG === 'en') ? {
+    ended: 'ENDED', live: '● LIVE', endedDot: '● ENDED',
+    auctionEnded: 'AUCTION ENDED', placeBid: 'PLACE BID', leading: 'YOU ARE LEADING',
+    yourBidLeading: "<span style='color:#4ade80;'>● Your bid is leading</span>",
+    yourBidOutbid:  "<span style='color:#f87171;'>○ Your bid was outbid</span>",
+    sending: 'Sending…', loading: 'Loading…',
+    sessionExpired: 'Session expired — please sign in again',
+    bidAccepted: 'BID ACCEPTED!',
+    minBid: 'Minimum bid: ', currency: ' ₽',
+    unknownErr: 'Unknown error', serverErr: 'Server connection error',
+    download: '↓ Download auction history (.txt)',
+} : {
+    ended: 'ЗАВЕРШЕНО', live: '● В ЭФИРЕ', endedDot: '● ЗАВЕРШЕНО',
+    auctionEnded: 'ТОРГИ ЗАВЕРШЕНЫ', placeBid: 'СДЕЛАТЬ СТАВКУ', leading: 'ВЫ ЛИДИРУЕТЕ',
+    yourBidLeading: "<span style='color:#4ade80;'>● Ваша ставка лучшая</span>",
+    yourBidOutbid:  "<span style='color:#f87171;'>○ Ваша ставка перебита</span>",
+    sending: 'Отправка…', loading: 'Загрузка…',
+    sessionExpired: 'Сессия истекла — войдите снова',
+    bidAccepted: 'СТАВКА ПРИНЯТА!',
+    minBid: 'Минимальная ставка: ', currency: ' ₽',
+    unknownErr: 'Неизвестная ошибка', serverErr: 'Ошибка связи с сервером',
+    download: '↓ Скачать историю торгов (.txt)',
+};
 
 /* ── Серверное время ─────────────────────────────────── */
 function updateServerTime() {
@@ -394,14 +429,14 @@ function tick() {
             auctionEnded = true;
             clearInterval(tickTimer);
 
-            el.textContent = 'ЗАВЕРШЕНО';
+            el.textContent = I18N.ended;
             el.classList.add('ended');
 
             const badge = document.getElementById('live-badge');
-            if (badge) { badge.textContent = '● ЗАВЕРШЕНО'; badge.style.color = '#475569'; }
+            if (badge) { badge.textContent = I18N.endedDot; badge.style.color = '#475569'; }
 
             const btn = document.getElementById('bt');
-            if (btn) { btn.disabled = true; btn.textContent = 'ТОРГИ ЗАВЕРШЕНЫ'; }
+            if (btn) { btn.disabled = true; btn.textContent = I18N.auctionEnded; }
 
             const inp = document.getElementById('in');
             if (inp) inp.disabled = true;
@@ -445,15 +480,15 @@ function sync() {
             const btn = document.getElementById('bt');
             if (btn && !auctionEnded) {
                 btn.disabled    = d.leader;
-                btn.textContent = d.leader ? 'ВЫ ЛИДИРУЕТЕ' : 'СДЕЛАТЬ СТАВКУ';
+                btn.textContent = d.leader ? I18N.leading : I18N.placeBid;
             }
 
             const statusEl = document.getElementById('leader-status');
             if (statusEl && !auctionEnded) {
                 if (d.leader) {
-                    statusEl.innerHTML = "<span style='color:#4ade80;'>● Ваша ставка лучшая</span>";
+                    statusEl.innerHTML = I18N.yourBidLeading;
                 } else {
-                    statusEl.innerHTML = "<span style='color:#f87171;'>○ Ваша ставка перебита</span>";
+                    statusEl.innerHTML = I18N.yourBidOutbid;
                 }
             }
 
@@ -479,7 +514,7 @@ function sync() {
                 if (wrap && !wrap.querySelector('a')) {
                     wrap.innerHTML =
                         `<a class="download-link" href="logs/lot_${LOT_ID}.txt" download>`
-                        + `↓ Скачать историю торгов (.txt)</a>`;
+                        + '<a' + '>' + I18N.download + '</a>';
                 }
             }
 
@@ -488,7 +523,7 @@ function sync() {
                 clearInterval(syncTimer);
             }
         })
-        .catch(() => showMsg('Ошибка связи с сервером', '#ef4444'));
+        .catch(() => showMsg(I18N.serverErr, '#ef4444'));
 }
 
 /* ── Ставка ──────────────────────────────────────────── */
@@ -498,13 +533,13 @@ function bid() {
     const minBid = parseInt(inp?.min, 10) || 0;
 
     if (!amount || amount < minBid) {
-        showMsg('Минимальная ставка: ' + minBid.toLocaleString('ru-RU') + ' ₽', '#ef4444');
+        showMsg(I18N.minBid + minBid.toLocaleString('ru-RU') + I18N.currency, '#ef4444');
         return;
     }
 
     const btn = document.getElementById('bt');
     btn.disabled    = true;
-    btn.textContent = 'Отправка…';
+    btn.textContent = I18N.sending;
     showMsg('', '');
 
     const fd = new FormData();
@@ -514,10 +549,10 @@ function bid() {
     fetch('send_bid.php', { method: 'POST', body: fd })
         .then(r => {
             if (r.status === 401) {
-                showMsg('Сессия истекла — войдите снова', '#f87171');
+                showMsg(I18N.sessionExpired, '#f87171');
                 if (typeof openAuthModal === 'function') openAuthModal();
                 btn.disabled    = false;
-                btn.textContent = 'СДЕЛАТЬ СТАВКУ';
+                btn.textContent = I18N.placeBid;
                 return null;
             }
             return r.text();
@@ -525,18 +560,18 @@ function bid() {
         .then(res => {
             if (res === null) return;
             if (res.trim() === 'success') {
-                showMsg('СТАВКА ПРИНЯТА!', '#22c55e');
+                showMsg(I18N.bidAccepted, '#22c55e');
                 sync();
             } else {
-                showMsg(res.trim() || 'Неизвестная ошибка', '#ef4444');
+                showMsg(res.trim() || I18N.unknownErr, '#ef4444');
                 btn.disabled    = false;
-                btn.textContent = 'СДЕЛАТЬ СТАВКУ';
+                btn.textContent = I18N.placeBid;
             }
         })
         .catch(() => {
-            showMsg('Ошибка связи с сервером', '#ef4444');
+            showMsg(I18N.serverErr, '#ef4444');
             btn.disabled    = false;
-            btn.textContent = 'СДЕЛАТЬ СТАВКУ';
+            btn.textContent = I18N.placeBid;
         });
 }
 

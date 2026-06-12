@@ -69,7 +69,20 @@ try {
         error_log('db_schema_extra (draft -> active migration) error: ' . $e->getMessage());
     }
 
+        /* Favorites: per-user starred lots, both auction lots and torgi lots. */
     $pdo->exec("
+        CREATE TABLE IF NOT EXISTS user_favorites (
+            id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            user_id     INT UNSIGNED NOT NULL,
+            lot_type    ENUM('lot','torgi') NOT NULL,
+            lot_id      INT UNSIGNED NOT NULL,
+            created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY u_user_lot (user_id, lot_type, lot_id),
+            INDEX idx_user (user_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+
+$pdo->exec("
         CREATE TABLE IF NOT EXISTS closed_participants (
             id               INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
             lot_id           INT UNSIGNED NOT NULL,

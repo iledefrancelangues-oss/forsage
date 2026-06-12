@@ -6,9 +6,8 @@ require_once 'db.php';
 require_once 'finances.php';
 date_default_timezone_set('Europe/Moscow');
 
-if (empty($_SESSION['user_id'])) { header('Location: index.php'); exit; }
+require_once __DIR__ . '/admin_only.php';
 
-// Простая проверка — только Admin (id=1) или добавь роль admin в users
 $admin_id = (int)$_SESSION['user_id'];
 $me = $pdo->prepare("SELECT id, username FROM users WHERE id = ?");
 $me->execute([$admin_id]);
@@ -97,6 +96,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         echo json_encode(['success' => true, 'msg' => "Комиссия {$rate}% сохранена"]);
 
+    } elseif ($action === 'set_setting') {
+        // Универсальный set: один ключ или батч. Список разрешённых ключей — whitelist:
+        $allowed = [
+            'organizer_bonus_pct'         => ['min'=>0,'max'=>50],
+            'platform_commission_pct'     => ['min'=>0,'max'=>50],
+            'bid_respected_reg_cost'      => ['min'=>0,'max'=>100000],
+            'bid_respected_cash'          => ['min'=>0,'max'=>100000],
+            'bid_respected_balance'       => ['min'=>0,'max'=>100000],
+            'bid_respected_pack_size'     => ['min'=>1,'max'=>1000],
+            'bid_respected_pack_discount' => ['min'=>0,'max'=>90],
+            'bid_responsible_reg_cost'    => ['min'=>0,'max'=>1000000],
+            'bid_responsible_cash'        => ['min'=>0,'max'=>100000],
+            'bid_responsible_balance'     => ['min'=>0,'max'=>100000],
+            'bid_responsible_pack_size'   => ['min'=>1,'max'=>1000],
+            'bid_responsible_pack_discount'=>['min'=>0,'max'=>90],
+        ];
+        $pdo->exec("CREATE TABLE IF NOT EXISTS system_settings (skey VARCHAR(64) PRIMARY KEY, sval VARCHAR(255) NOT NULL, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        $changes = [];
+        $stmt = $pdo->prepare("REPLACE INTO system_settings (skey, sval) VALUES (?, ?)");
+        foreach ($allowed as $key => $rng) {
+            if (!array_key_exists($key, $_POST)) continue;
+            $val = (float)$_POST[$key];
+            $val = max($rng['min'], min($rng['max'], $val));
+            $stmt->execute([$key, (string)$val]);
+            $changes[$key] = $val;
+        }
+        if (!$changes) { echo json_encode(['error' => 'Нет допустимых полей для сохранения']); exit; }
+        echo json_encode(['success' => true, 'msg' => 'Сохранено', 'changes' => $changes]);
+
+    } elseif ($action === 'set_organizer_bonus') {
+        // Легаси-алиас для старого клиентского кода.
+        $pct = max(0, min(50, (float)($_POST['pct'] ?? 15)));
+        $pdo->exec("CREATE TABLE IF NOT EXISTS system_settings (skey VARCHAR(64) PRIMARY KEY, sval VARCHAR(255) NOT NULL, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        $pdo->prepare("REPLACE INTO system_settings (skey, sval) VALUES ('organizer_bonus_pct', ?)")->execute([$pct]);
+        echo json_encode(['success' => true, 'msg' => "Бонус организатора {$pct}% сохранён"]);
+
     } else {
         echo json_encode(['error' => 'Неизвестное действие']);
     }
@@ -114,6 +149,39 @@ $users = $pdo->query(
 $global_comm = $pdo->query(
     "SELECT rate_pct FROM commission_settings WHERE user_id IS NULL AND lot_id IS NULL LIMIT 1"
 )->fetchColumn() ?: 5;
+
+/* Индивидуальные комиссии по юзерам */
+$user_comm = [];
+try {
+    $rows = $pdo->query("SELECT user_id, rate_pct FROM commission_settings WHERE user_id IS NOT NULL AND lot_id IS NULL")->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($rows as $r) { $user_comm[(int)$r['user_id']] = (float)$r['rate_pct']; }
+} catch (Throwable $e) {}
+
+/* Настройки платформы из system_settings (с дефолтами) */
+$defaults = [
+    'organizer_bonus_pct'           => 15,
+    'bid_respected_reg_cost'        => 0,
+    'bid_respected_cash'            => 2490,
+    'bid_respected_balance'         => 1990,
+    'bid_respected_pack_size'       => 20,
+    'bid_respected_pack_discount'   => 25,
+    'bid_responsible_reg_cost'      => 8000,
+    'bid_responsible_cash'          => 1890,
+    'bid_responsible_balance'       => 1490,
+    'bid_responsible_pack_size'     => 20,
+    'bid_responsible_pack_discount' => 40,
+];
+$settings = $defaults;
+try {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS system_settings (skey VARCHAR(64) PRIMARY KEY, sval VARCHAR(255) NOT NULL, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    $rows = $pdo->query("SELECT skey, sval FROM system_settings")->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($rows as $r) {
+        if (array_key_exists($r['skey'], $defaults) && is_numeric($r['sval'])) {
+            $settings[$r['skey']] = (float)$r['sval'];
+        }
+    }
+} catch (Throwable $e) {}
+$organizer_bonus_pct = $settings['organizer_bonus_pct'];
 ?>
 <!DOCTYPE html>
 <html lang="ru">
@@ -123,17 +191,32 @@ $global_comm = $pdo->query(
     <title>Управление пользователями — ERA ETP</title>
     <style>
         *, *::before, *::after { box-sizing: border-box; }
+        html, body { max-width:100%; overflow-x:hidden; }
         body { background:#0f172a; color:#fff; font-family:sans-serif; margin:0; padding:24px 16px; }
         h2 { font-size:20px; margin:0 0 24px; }
 
+        .settings-section { margin-bottom:24px; }
+        .settings-h { margin:0 0 12px; font-size:15px; color:#cbd5e1; font-weight:700; }
+        .settings-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+        .settings-card { background:#1e293b; border:1px solid #334155; border-radius:14px; padding:16px 18px; }
+        .settings-card-title { font-size:14px; font-weight:700; color:#fff; margin-bottom:10px; }
+        .settings-card-sub { font-size:11px; font-weight:400; color:#64748b; }
+        .settings-label { display:block; font-size:11px; color:#94a3b8; margin:0 0 4px; text-transform:uppercase; letter-spacing:.4px; }
+        .settings-row { display:flex; align-items:center; gap:8px; }
+        .settings-row-2 { display:grid; grid-template-columns:1fr 1fr; gap:10px 14px; }
+        .settings-input { width:100%; padding:8px 10px; border-radius:8px; background:#0f172a; border:1px solid #334155; color:#fff; font-size:14px; text-align:left; }
+        .settings-input:focus { outline:none; border-color:#3b82f6; }
+        .settings-suffix { color:#64748b; font-size:13px; flex-shrink:0; min-width:18px; }
+        .settings-hint { color:#64748b; font-size:11px; margin:6px 0 10px; line-height:1.4; }
+        .settings-msg { display:inline-block; margin-left:10px; font-size:12px; font-weight:600; }
         .global-comm {
             background:#1e293b; border:1px solid #334155; border-radius:14px;
-            padding:16px 20px; margin-bottom:24px;
+            padding:16px 20px; margin:0;
             display:flex; align-items:center; gap:16px; flex-wrap:wrap;
         }
         .global-comm label { font-size:13px; color:#94a3b8; }
         .global-comm input { width:80px; padding:8px; border-radius:8px; background:#0f172a; border:1px solid #334155; color:#fff; font-size:15px; text-align:center; }
-        .btn { padding:9px 18px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:13px; transition:background 0.2s; }
+        .btn { padding:9px 18px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:13px; transition:background 0.2s; min-height:36px; }
         .btn-blue   { background:#3b82f6; color:#fff; }
         .btn-blue:hover { background:#2563eb; }
         .btn-red    { background:#ef4444; color:#fff; }
@@ -144,12 +227,13 @@ $global_comm = $pdo->query(
         .btn-green:hover { background:#16a34a; }
         .btn-gray   { background:#334155; color:#94a3b8; }
         .btn-gray:hover { background:#3d5068; color:#fff; }
-        .btn-sm { padding:6px 12px; font-size:12px; }
+        .btn-sm { padding:6px 12px; font-size:12px; min-height:32px; }
 
-        table { width:100%; border-collapse:collapse; font-size:13px; }
-        th { background:#0f172a; padding:10px 12px; text-align:left; color:#64748b; font-size:11px; text-transform:uppercase; letter-spacing:1px; }
-        td { padding:10px 12px; border-bottom:1px solid #1e293b; vertical-align:middle; }
-        tr:hover td { background:#1a2540; }
+        .table-card-wrap { background:#1e293b; border:1px solid #334155; border-radius:16px; overflow:hidden; }
+        table.users-table { width:100%; border-collapse:collapse; font-size:13px; }
+        .users-table th { background:#0f172a; padding:10px 12px; text-align:left; color:#64748b; font-size:11px; text-transform:uppercase; letter-spacing:1px; }
+        .users-table td { padding:10px 12px; border-bottom:1px solid #1e293b; vertical-align:middle; }
+        .users-table tr:hover td { background:#1a2540; }
 
         .badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:bold; }
         .badge-respected   { background:#1e3a5f; color:#60a5fa; }
@@ -159,10 +243,10 @@ $global_comm = $pdo->query(
 
         .actions { display:flex; gap:6px; flex-wrap:wrap; }
 
-        /* Модалка бана */
+        /* Модалки */
         .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:100; justify-content:center; align-items:center; padding:16px; }
         .modal-overlay.open { display:flex; }
-        .modal-box { background:#1e293b; border:1px solid #334155; border-radius:16px; padding:24px; width:100%; max-width:400px; }
+        .modal-box { background:#1e293b; border:1px solid #334155; border-radius:16px; padding:24px; width:100%; max-width:400px; max-height:90vh; overflow-y:auto; -webkit-overflow-scrolling:touch; }
         .modal-box h3 { margin:0 0 16px; font-size:16px; }
         .field { width:100%; padding:10px 14px; border-radius:8px; background:#0f172a; border:1px solid #334155; color:#fff; font-size:14px; margin-bottom:10px; outline:none; }
         .field:focus { border-color:#3b82f6; }
@@ -170,6 +254,94 @@ $global_comm = $pdo->query(
 
         .back-link { display:inline-block; margin-bottom:20px; color:#64748b; font-size:13px; text-decoration:none; }
         .back-link:hover { color:#94a3b8; }
+
+        /* ── Mobile (≤768px): таблица превращается в карточки ── */
+        @media (max-width: 768px) {
+            body { padding:14px 10px; }
+            h2 { font-size:18px; margin-bottom:16px; }
+
+            .settings-grid { grid-template-columns:1fr; gap:10px; }
+            .settings-section { margin-bottom:16px; }
+            .settings-card { padding:12px 14px; }
+            .settings-row-2 { grid-template-columns:1fr; gap:8px; }
+            .settings-input { font-size:16px; } /* iOS без зума */
+            .settings-card .btn { width:100%; }
+            .global-comm {
+                padding:12px 14px;
+                gap:10px;
+                flex-direction:column;
+                align-items:stretch;
+            }
+            .global-comm label { font-size:12px; }
+            .global-comm input { width:100%; max-width:140px; }
+            .global-comm .btn { width:100%; min-height:40px; }
+            .global-comm > span { display:none; }
+
+            .table-card-wrap { background:transparent; border:none; border-radius:0; overflow:visible; }
+            .users-table, .users-table tbody, .users-table tr, .users-table td { display:block; width:100%; }
+            .users-table thead { display:none; }
+            .users-table tr {
+                background:#1e293b;
+                border:1px solid #334155;
+                border-radius:14px;
+                padding:14px;
+                margin-bottom:12px;
+            }
+            .users-table tr:hover td { background:transparent; }
+            .users-table td {
+                padding:8px 0;
+                border-bottom:1px dashed #334155;
+                display:flex;
+                justify-content:space-between;
+                align-items:flex-start;
+                gap:10px;
+                text-align:right;
+                font-size:13px;
+                min-height:34px;
+            }
+            .users-table td:last-child { border-bottom:none; padding-bottom:0; }
+            .users-table td::before {
+                content: attr(data-label);
+                color:#64748b;
+                font-size:11px;
+                text-transform:uppercase;
+                letter-spacing:0.5px;
+                font-weight:bold;
+                flex-shrink:0;
+                text-align:left;
+                padding-top:3px;
+                min-width:80px;
+            }
+            .users-table td.cell-actions {
+                flex-direction:column;
+                align-items:stretch;
+                text-align:left;
+                padding-top:12px;
+            }
+            .users-table td.cell-actions::before {
+                margin-bottom:8px;
+                padding-top:0;
+            }
+            .users-table td.cell-actions .actions {
+                flex-direction:column;
+                gap:8px;
+            }
+            .users-table td.cell-actions .btn { width:100%; min-height:44px; font-size:13px; }
+
+            /* Модалки — максимум места на мобилке */
+            .modal-overlay { padding:10px; align-items:flex-start; padding-top:24px; }
+            .modal-box { padding:18px; border-radius:14px; max-height:calc(100vh - 48px); }
+            .modal-box h3 { font-size:15px; margin-bottom:12px; }
+            .modal-box .btn { min-height:44px; }
+            .modal-box .field { font-size:16px; } /* против iOS auto-zoom */
+        }
+
+        @media (max-width: 380px) {
+            body { padding:10px 8px; }
+            .global-comm { padding:10px; }
+            .users-table tr { padding:12px; }
+            .users-table td::before { min-width:70px; font-size:10px; }
+        }
     </style>
 </head>
 <body>
@@ -177,18 +349,96 @@ $global_comm = $pdo->query(
 <a class="back-link" href="reestr.php">← Реестр</a>
 <h2>👥 Управление пользователями</h2>
 
-<!-- Глобальная комиссия -->
-<div class="global-comm">
-    <label>Глобальная комиссия площадки:</label>
-    <input type="number" id="global-rate" value="<?= $global_comm ?>" min="0" max="50" step="0.5">
-    <span style="color:#64748b;">%</span>
-    <button class="btn btn-blue btn-sm" onclick="setGlobalComm()">Сохранить</button>
-    <span id="comm-msg" style="font-size:12px;color:#4ade80;"></span>
+<!-- ── Настройки платформы (комиссии, бонус организатора, тарифы ставок) ── -->
+<div class="settings-section">
+    <h3 class="settings-h">⚙️ Комиссии и бонусы</h3>
+    <div class="settings-grid">
+        <div class="settings-card">
+            <label class="settings-label">Глобальная комиссия площадки</label>
+            <div class="settings-row">
+                <input type="number" id="global-rate" class="settings-input" value="<?= htmlspecialchars((string)$global_comm) ?>" min="0" max="50" step="0.5">
+                <span class="settings-suffix">%</span>
+            </div>
+            <p class="settings-hint">Удерживается с организатора с выручки лота (если для лота/юзера не задано индивидуально).</p>
+            <button class="btn btn-blue btn-sm" onclick="setGlobalComm()">Сохранить</button>
+            <span id="comm-msg" class="settings-msg"></span>
+        </div>
+        <div class="settings-card">
+            <label class="settings-label">Бонус организатора</label>
+            <div class="settings-row">
+                <input type="number" id="organizer-bonus" class="settings-input" value="<?= htmlspecialchars((string)$organizer_bonus_pct) ?>" min="0" max="50" step="0.5">
+                <span class="settings-suffix">%</span>
+            </div>
+            <p class="settings-hint">% от выручки со всех проданных ставок аукциона — начисляется организатору.</p>
+            <button class="btn btn-blue btn-sm" onclick="setOrganizerBonus()">Сохранить</button>
+            <span id="bonus-msg" class="settings-msg"></span>
+        </div>
+    </div>
+</div>
+
+<div class="settings-section">
+    <h3 class="settings-h">⚡ Тарифы скандинавских ставок</h3>
+    <div class="settings-grid">
+        <div class="settings-card">
+            <div class="settings-card-title">🤝 Уважаемый <span class="settings-card-sub">(бесплатная регистрация)</span></div>
+            <div class="settings-row-2">
+                <div>
+                    <label class="settings-label">Регистрация</label>
+                    <div class="settings-row"><input type="number" id="resp-reg" class="settings-input" value="<?= htmlspecialchars((string)$settings['bid_respected_reg_cost']) ?>" min="0" step="100"><span class="settings-suffix">₽</span></div>
+                </div>
+                <div>
+                    <label class="settings-label">Ставка наличкой / QR</label>
+                    <div class="settings-row"><input type="number" id="resp-cash" class="settings-input" value="<?= htmlspecialchars((string)$settings['bid_respected_cash']) ?>" min="0" step="10"><span class="settings-suffix">₽</span></div>
+                </div>
+                <div>
+                    <label class="settings-label">Ставка с баланса</label>
+                    <div class="settings-row"><input type="number" id="resp-balance" class="settings-input" value="<?= htmlspecialchars((string)$settings['bid_respected_balance']) ?>" min="0" step="10"><span class="settings-suffix">₽</span></div>
+                </div>
+                <div>
+                    <label class="settings-label">Размер пакета</label>
+                    <div class="settings-row"><input type="number" id="resp-packsz" class="settings-input" value="<?= htmlspecialchars((string)$settings['bid_respected_pack_size']) ?>" min="1" step="1"><span class="settings-suffix">шт</span></div>
+                </div>
+                <div>
+                    <label class="settings-label">Скидка пакета</label>
+                    <div class="settings-row"><input type="number" id="resp-packdisc" class="settings-input" value="<?= htmlspecialchars((string)$settings['bid_respected_pack_discount']) ?>" min="0" max="90" step="1"><span class="settings-suffix">%</span></div>
+                </div>
+            </div>
+            <button class="btn btn-blue btn-sm" onclick="saveRespectedTariff()" style="margin-top:10px;">Сохранить тариф «Уважаемый»</button>
+            <span id="resp-msg" class="settings-msg"></span>
+        </div>
+        <div class="settings-card">
+            <div class="settings-card-title">✅ Ответственный <span class="settings-card-sub">(платная регистрация)</span></div>
+            <div class="settings-row-2">
+                <div>
+                    <label class="settings-label">Регистрация</label>
+                    <div class="settings-row"><input type="number" id="resb-reg" class="settings-input" value="<?= htmlspecialchars((string)$settings['bid_responsible_reg_cost']) ?>" min="0" step="500"><span class="settings-suffix">₽</span></div>
+                </div>
+                <div>
+                    <label class="settings-label">Ставка наличкой / QR</label>
+                    <div class="settings-row"><input type="number" id="resb-cash" class="settings-input" value="<?= htmlspecialchars((string)$settings['bid_responsible_cash']) ?>" min="0" step="10"><span class="settings-suffix">₽</span></div>
+                </div>
+                <div>
+                    <label class="settings-label">Ставка с баланса</label>
+                    <div class="settings-row"><input type="number" id="resb-balance" class="settings-input" value="<?= htmlspecialchars((string)$settings['bid_responsible_balance']) ?>" min="0" step="10"><span class="settings-suffix">₽</span></div>
+                </div>
+                <div>
+                    <label class="settings-label">Размер пакета</label>
+                    <div class="settings-row"><input type="number" id="resb-packsz" class="settings-input" value="<?= htmlspecialchars((string)$settings['bid_responsible_pack_size']) ?>" min="1" step="1"><span class="settings-suffix">шт</span></div>
+                </div>
+                <div>
+                    <label class="settings-label">Скидка пакета</label>
+                    <div class="settings-row"><input type="number" id="resb-packdisc" class="settings-input" value="<?= htmlspecialchars((string)$settings['bid_responsible_pack_discount']) ?>" min="0" max="90" step="1"><span class="settings-suffix">%</span></div>
+                </div>
+            </div>
+            <button class="btn btn-blue btn-sm" onclick="saveResponsibleTariff()" style="margin-top:10px;">Сохранить тариф «Ответственный»</button>
+            <span id="resb-msg" class="settings-msg"></span>
+        </div>
+    </div>
 </div>
 
 <!-- Таблица пользователей -->
-<div style="background:#1e293b;border:1px solid #334155;border-radius:16px;overflow:hidden;">
-    <table>
+<div class="table-card-wrap">
+    <table class="users-table">
         <thead>
             <tr>
                 <th>ID</th>
@@ -203,26 +453,26 @@ $global_comm = $pdo->query(
         <tbody>
         <?php foreach ($users as $u): ?>
         <tr>
-            <td style="color:#64748b;"><?= $u['id'] ?></td>
-            <td>
+            <td data-label="ID" style="color:#64748b;"><?= $u['id'] ?></td>
+            <td data-label="Логин">
                 <b><?= htmlspecialchars($u['username']) ?></b>
                 <?php if ($u['email']): ?>
                 <div style="font-size:11px;color:#64748b;"><?= htmlspecialchars($u['email']) ?></div>
                 <?php endif; ?>
             </td>
-            <td>
+            <td data-label="Статус">
                 <span class="badge badge-<?= $u['user_type'] ?>">
                     <?= $u['user_type'] === 'respected' ? '🤝 Уважаемый' : '✅ Ответственный' ?>
                 </span>
             </td>
-            <td>
+            <td data-label="Баланс">
                 <?= number_format((int)$u['balance'], 0, '.', ' ') ?>&nbsp;₽
                 <?php if ($u['bid_pack_remaining'] > 0): ?>
                 <div style="font-size:11px;color:#f59e0b;">📦 <?= $u['bid_pack_remaining'] ?> ставок</div>
                 <?php endif; ?>
             </td>
-            <td><?= $u['total_bids'] ?></td>
-            <td>
+            <td data-label="Ставок"><?= $u['total_bids'] ?></td>
+            <td data-label="Бан">
                 <?php if ($u['ban_type'] === 'hard'): ?>
                     <span class="badge badge-hard-ban">🔴 Жёсткий</span>
                     <div style="font-size:11px;color:#f87171;margin-top:3px;"><?= htmlspecialchars(mb_substr($u['ban_reason'],0,40)) ?></div>
@@ -233,7 +483,7 @@ $global_comm = $pdo->query(
                     <span style="color:#4ade80;font-size:12px;">✓ Активен</span>
                 <?php endif; ?>
             </td>
-            <td>
+            <td class="cell-actions" data-label="Действия">
                 <div class="actions">
                     <?php if ($u['user_type'] === 'respected'): ?>
                     <button class="btn btn-green btn-sm"
@@ -252,6 +502,10 @@ $global_comm = $pdo->query(
                     <button class="btn btn-gray btn-sm"
                         onclick="openRestrict(<?= $u['id'] ?>, <?= isset($u['soft_bid_limit']) ? (int)$u['soft_bid_limit'] : 'null' ?>)">
                         🎯 Лимит ставок
+                    </button>
+                    <button class="btn btn-blue btn-sm"
+                        onclick="openComm(<?= $u['id'] ?>, '<?= htmlspecialchars($u['username'], ENT_QUOTES) ?>', <?= isset($user_comm[(int)$u['id']]) ? $user_comm[(int)$u['id']] : 'null' ?>)">
+                        💼 Комиссия<?php if (isset($user_comm[(int)$u['id']])): ?> <?= rtrim(rtrim(number_format($user_comm[(int)$u['id']], 1, '.', ''), '0'), '.') ?>%<?php endif; ?>
                     </button>
                 </div>
             </td>
@@ -392,5 +646,84 @@ function removeRestrict() {
     });
 }
 </script>
+<!-- Модалка индивидуальной комиссии юзера -->
+<div class="modal-overlay" id="comm-modal" onclick="if(event.target===this)this.classList.remove('open')">
+    <div class="modal-box">
+        <h3>💼 Комиссия для <span id="comm-username"></span></h3>
+        <p style="font-size:13px;color:#94a3b8;margin:0 0 14px;">
+            Индивидуальная ставка комиссии для этого пользователя. Пусто җ будет использоваться глобальная.
+        </p>
+        <input type="hidden" id="comm-uid">
+        <label style="font-size:12px;color:#64748b;">Ставка комиссии (%):</label>
+        <input class="field" type="number" id="comm-rate" value="5" min="0" max="50" step="0.5">
+        <div style="display:flex;gap:10px;margin-top:4px;">
+            <button class="btn btn-blue" style="flex:1;" onclick="submitUserComm()">Сохранить</button>
+            <button class="btn btn-gray" style="flex:1;" onclick="document.getElementById('comm-modal').classList.remove('open')">Отмена</button>
+        </div>
+        <div id="comm-msg-out" style="min-height:20px;font-size:13px;font-weight:bold;text-align:center;margin-top:8px;"></div>
+    </div>
+</div>
+
+<script>
+function setOrganizerBonus() {
+    const pct = document.getElementById('organizer-bonus').value;
+    post({action:'set_setting', user_id:1, organizer_bonus_pct:pct}, d => {
+        const m = document.getElementById('bonus-msg');
+        m.textContent = d.success ? '✅ Сохранено' : ('❌ ' + (d.error||d.msg));
+        m.style.color = d.success ? '#4ade80' : '#f87171';
+    });
+}
+function saveRespectedTariff() {
+    post({
+        action:'set_setting', user_id:1,
+        bid_respected_reg_cost:        document.getElementById('resp-reg').value,
+        bid_respected_cash:            document.getElementById('resp-cash').value,
+        bid_respected_balance:         document.getElementById('resp-balance').value,
+        bid_respected_pack_size:       document.getElementById('resp-packsz').value,
+        bid_respected_pack_discount:   document.getElementById('resp-packdisc').value,
+    }, d => {
+        const m = document.getElementById('resp-msg');
+        m.textContent = d.success ? '✅ Сохранено' : ('❌ ' + (d.error||d.msg));
+        m.style.color = d.success ? '#4ade80' : '#f87171';
+    });
+}
+function saveResponsibleTariff() {
+    post({
+        action:'set_setting', user_id:1,
+        bid_responsible_reg_cost:      document.getElementById('resb-reg').value,
+        bid_responsible_cash:          document.getElementById('resb-cash').value,
+        bid_responsible_balance:       document.getElementById('resb-balance').value,
+        bid_responsible_pack_size:     document.getElementById('resb-packsz').value,
+        bid_responsible_pack_discount: document.getElementById('resb-packdisc').value,
+    }, d => {
+        const m = document.getElementById('resb-msg');
+        m.textContent = d.success ? '✅ Сохранено' : ('❌ ' + (d.error||d.msg));
+        m.style.color = d.success ? '#4ade80' : '#f87171';
+    });
+}
+function openComm(uid, username, currentRate) {
+    document.getElementById('comm-uid').value = uid;
+    document.getElementById('comm-username').textContent = username;
+    document.getElementById('comm-rate').value = currentRate !== null ? currentRate : 5;
+    document.getElementById('comm-msg-out').textContent = '';
+    document.getElementById('comm-modal').classList.add('open');
+}
+function submitUserComm() {
+    const uid  = document.getElementById('comm-uid').value;
+    const rate = document.getElementById('comm-rate').value;
+    post({action:'set_commission', user_id:uid, rate, for_user_id:uid, lot_id_comm:''}, d => {
+        const m = document.getElementById('comm-msg-out');
+        if (d.success) {
+            m.style.color = '#4ade80';
+            m.textContent = d.msg || '✅ Сохранено';
+            setTimeout(() => location.reload(), 700);
+        } else {
+            m.style.color = '#f87171';
+            m.textContent = d.error || d.msg;
+        }
+    });
+}
+</script>
+
 </body>
 </html>

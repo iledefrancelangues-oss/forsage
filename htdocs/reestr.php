@@ -120,7 +120,21 @@ try {
     error_log('reestr load error: ' . $e->getMessage());
 }
 
-$type_labels = [
+/* Preload current user's favorites in one query for the auction registry. */
+require_once 'db_schema_extra.php';
+require_once 'favorites_widget.php';
+$_user_id = (int)($_SESSION['user_id'] ?? 0);
+$_fav_ids = array_map(fn($l) => (int)$l['id'], $lots);
+$_favs = favorites_lookup($pdo, $_user_id, 'lot', $_fav_ids);
+
+$type_labels = ($lang ?? ($_SESSION['lang'] ?? 'ru')) === 'en' ? [
+    'classic'      => '🔨 Open auction',
+    'scandinavian' => '🔥 Scandinavian',
+    'closed'       => '🔒 Closed auction',
+    'descending'   => '📉 Reverse (Dutch)',
+    'quotation'    => '📋 Request for quotations',
+    'proposal'     => '📨 Request for proposals',
+] : [
     'classic'      => '🔨 Открытый аукцион',
     'scandinavian' => '🔥 Скандинавский',
     'closed'       => '🔒 Закрытый аукцион',
@@ -130,6 +144,7 @@ $type_labels = [
 ];
 
 include 'header.php';
+favorites_render_assets($lang ?? 'ru');
 ?>
 <main style="flex:1;">
 <style>
@@ -183,17 +198,24 @@ include 'header.php';
 </style>
 <div class="registry-page">
     <div class="registry-header">
-        <h1>Реестр торгов <span class="count-pill"><?= count($lots) ?></span></h1>
+        <h1><?= $lang === 'en' ? 'Auction registry' : 'Реестр торгов' ?> <span class="count-pill"><?= count($lots) ?></span></h1>
         <?php if (!empty($_SESSION['user_id'])): ?>
-            <a href="add_lot.php" class="registry-new-lot">+ Разместить лот</a>
+            <a href="add_lot.php" class="registry-new-lot"><?= $lang === 'en' ? '+ List a lot' : '+ Разместить лот' ?></a>
         <?php endif; ?>
     </div>
 
     <div class="registry-filters">
         <div class="filter-row">
-            <span class="filter-label">Статус</span>
+            <span class="filter-label"><?= $lang === 'en' ? 'Status' : 'Статус' ?></span>
             <?php
-            $statuses = [
+            $statuses = $lang === 'en' ? [
+                'active'    => 'Current',
+                'accepting' => 'Accepting bids',
+                'reviewing' => 'Review',
+                'results'   => 'Results',
+                'failed'    => 'Unsuccessful',
+                'archive'   => '📁 Archive',
+            ] : [
                 'active'    => 'Актуальные',
                 'accepting' => 'Приём заявок',
                 'reviewing' => 'Рассмотрение',
@@ -209,46 +231,46 @@ include 'header.php';
             <?php endforeach; ?>
         </div>
         <div class="filter-row">
-            <span class="filter-label">Тип</span>
+            <span class="filter-label"><?= $lang === 'en' ? 'Type' : 'Тип' ?></span>
             <a href="?status=<?= htmlspecialchars($filter_status) ?>"
-               class="filter-btn <?= $filter_type==='' ? 'active' : '' ?>">Все</a>
+               class="filter-btn <?= $filter_type==='' ? 'active' : '' ?>"><?= $lang === 'en' ? 'All' : 'Все' ?></a>
             <a href="?status=<?= htmlspecialchars($filter_status) ?>&type=classic"
-               class="filter-btn <?= $filter_type==='classic' ? 'active' : '' ?>">🔨 Открытый</a>
+               class="filter-btn <?= $filter_type==='classic' ? 'active' : '' ?>">🔨 <?= $lang === 'en' ? 'Open' : 'Открытый' ?></a>
             <a href="?status=<?= htmlspecialchars($filter_status) ?>&type=closed"
-               class="filter-btn <?= $filter_type==='closed' ? 'active' : '' ?>">🔒 Закрытый</a>
+               class="filter-btn <?= $filter_type==='closed' ? 'active' : '' ?>">🔒 <?= $lang === 'en' ? 'Closed' : 'Закрытый' ?></a>
             <a href="?status=<?= htmlspecialchars($filter_status) ?>&type=descending"
-               class="filter-btn <?= $filter_type==='descending' ? 'active' : '' ?>">📉 На понижение</a>
+               class="filter-btn <?= $filter_type==='descending' ? 'active' : '' ?>">📉 <?= $lang === 'en' ? 'Reverse' : 'На понижение' ?></a>
             <a href="?status=<?= htmlspecialchars($filter_status) ?>&type=quotation"
-               class="filter-btn <?= $filter_type==='quotation' ? 'active' : '' ?>">📋 Котировки</a>
+               class="filter-btn <?= $filter_type==='quotation' ? 'active' : '' ?>">📋 <?= $lang === 'en' ? 'Quotations' : 'Котировки' ?></a>
             <a href="?status=<?= htmlspecialchars($filter_status) ?>&type=proposal"
-               class="filter-btn <?= $filter_type==='proposal' ? 'active' : '' ?>">📨 Предложения</a>
+               class="filter-btn <?= $filter_type==='proposal' ? 'active' : '' ?>">📨 <?= $lang === 'en' ? 'Proposals' : 'Предложения' ?></a>
             <div class="filter-divider"></div>
             <a href="?status=<?= htmlspecialchars($filter_status) ?>&type=scandinavian"
-               class="filter-btn scand <?= $filter_type==='scandinavian' ? 'active' : '' ?>">🔥 Скандинавский</a>
+               class="filter-btn scand <?= $filter_type==='scandinavian' ? 'active' : '' ?>">🔥 <?= $lang === 'en' ? 'Scandinavian' : 'Скандинавский' ?></a>
         </div>
     </div>
 
     <?php if (!$lots): ?>
         <div class="empty-state">
             <div class="empty-state-icon">📋</div>
-            Лоты не найдены под выбранные фильтры
+            <?= $lang === 'en' ? 'No lots match the selected filters' : 'Лоты не найдены под выбранные фильтры' ?>
         </div>
     <?php else: ?>
         <table class="registry-table">
             <thead>
                 <tr>
-                    <th>№ / Лот</th>
-                    <th>Тип</th>
-                    <th>Цена</th>
-                    <th>Статус</th>
-                    <th>До завершения</th>
+                    <th><?= $lang === 'en' ? '№ / Lot' : '№ / Лот' ?></th>
+                    <th><?= $lang === 'en' ? 'Type' : 'Тип' ?></th>
+                    <th><?= $lang === 'en' ? 'Price' : 'Цена' ?></th>
+                    <th><?= $lang === 'en' ? 'Status' : 'Статус' ?></th>
+                    <th><?= $lang === 'en' ? 'Time left' : 'До завершения' ?></th>
                     <th></th>
                 </tr>
             </thead>
             <tbody>
             <?php foreach ($lots as $lot):
                 $id    = (int)$lot['id'];
-                $title = $lot['title'] ?? ('Лот №'.$id);
+                $title = $lot['title'] ?? (($lang === 'en' ? 'Lot №' : 'Лот №').$id);
                 $atype = $lot['auction_type'] ?? 'classic';
                 $type_label = $type_labels[$atype] ?? $atype;
 
@@ -269,12 +291,12 @@ include 'header.php';
                     if ($max_end_ts > $now_ts) $diff = min($diff, $max_end_ts - $now_ts);
                     if ($diff == PHP_INT_MAX) $diff = 0;
                     
-                    if ($diff > 86400) $tval = floor($diff/86400).' дн.';
-                    elseif ($diff > 3600) $tval = floor($diff/3600).' ч '.floor(($diff%3600)/60).' мин';
+                    if ($diff > 86400) $tval = floor($diff/86400).($lang === 'en' ? ' d' : ' дн.');
+                    elseif ($diff > 3600) $tval = floor($diff/3600).($lang === 'en' ? ' h ' : ' ч ').floor(($diff%3600)/60).($lang === 'en' ? ' min' : ' мин');
                     else $tval = floor($diff/60).':'.str_pad($diff%60,2,'0',STR_PAD_LEFT);
                     $tcls = ($diff < 3600) ? 'soon' : 'ok';
                 } else {
-                    $tval = 'Завершён';
+                    $tval = $lang === 'en' ? 'Ended' : 'Завершён';
                     $tcls = 'ended';
                 }
                 
@@ -283,29 +305,29 @@ include 'header.php';
                 
                 if ($is_finished) {
                     if ($st_code === 'failed') {
-                        $display_status = 'Несостоявшийся';
+                        $display_status = $lang === 'en' ? 'Unsuccessful' : 'Несостоявшийся';
                         $status_color = '#f87171';
                         $status_bg = '#450a0a';
                     } elseif ($st_code === 'cancelled') {
-                        $display_status = 'Отменён';
+                        $display_status = $lang === 'en' ? 'Cancelled' : 'Отменён';
                         $status_color = '#94a3b8';
                         $status_bg = '#1e293b';
                     } elseif ($st_code === 'single') {
-                        $display_status = 'Единственный уч.';
+                        $display_status = $lang === 'en' ? 'Sole bidder' : 'Единственный уч.';
                         $status_color = '#f59e0b';
                         $status_bg = '#451a03';
                     } else {
-                        $display_status = 'Завершён';
+                        $display_status = $lang === 'en' ? 'Ended' : 'Завершён';
                         $status_color = '#64748b';
                         $status_bg = '#1e293b';
                     }
                 } else {
                     if (!$is_started) {
-                        $display_status = 'Приём заявок';
+                        $display_status = $lang === 'en' ? 'Accepting bids' : 'Приём заявок';
                         $status_color = '#f59e0b';
                         $status_bg = '#451a03';
                     } else {
-                        $display_status = 'Идут торги';
+                        $display_status = $lang === 'en' ? 'Live bidding' : 'Идут торги';
                         $status_color = '#22c55e';
                         $status_bg = '#14532d';
                     }
@@ -319,7 +341,7 @@ include 'header.php';
                 // ----- КНОПКА ДЛЯ НЕАВТОРИЗОВАННЫХ (вызов openAuthModal) -----
                 if (empty($_SESSION['user_id'])) {
                     $btn_url = '#';
-                    $onclick = 'openAuthModal(); return false;';
+                    $onclick = "openAuth('login'); return false;";
                 } else {
                     if ($is_scand) {
                         $btn_url = "lot_scandinavian.php?id=$id";
@@ -340,7 +362,15 @@ include 'header.php';
             ?>
                 <tr>
                     <td>
-                        <div class="lot-title"><?= htmlspecialchars($title) ?></div>
+                        <div class="lot-title-row" style="display:flex;align-items:flex-start;gap:8px;">
+                            <span class="fav-star-cell" style="flex-shrink:0;">
+                                <?php $cls_extra = ''; ?>
+                                <button type="button" class="fav-star fav-star-inline <?= !empty($_favs[(int)$id]) ? 'is-fav' : '' ?>" data-lot-type="lot" data-lot-id="<?= (int)$id ?>" aria-pressed="<?= !empty($_favs[(int)$id]) ? 'true' : 'false' ?>" title="<?= !empty($_favs[(int)$id]) ? ($lang === 'en' ? 'Remove from favorites' : 'Убрать из избранного') : ($lang === 'en' ? 'Add to favorites' : 'В избранное') ?>" onclick="toggleFavorite(event,this)">
+                                    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 2.6l3.09 6.26 6.91 1-5 4.87 1.18 6.87L12 18.4l-6.18 3.2L7 14.73l-5-4.87 6.91-1L12 2.6z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" fill="var(--fav-fill, none)"/></svg>
+                                </button>
+                            </span>
+                            <div class="lot-title" style="flex:1;"><?= htmlspecialchars($title) ?></div>
+                        </div>
                         <div class="lot-sub">
                             №<?= $id ?>
                             <?php if (!empty($lot['description'])):
@@ -352,14 +382,14 @@ include 'header.php';
                         <span class="type-badge type-<?= htmlspecialchars($atype) ?>">
                             <?= $type_label ?>
                             <?php if ($is_scand): ?>
-                                <span title="Уникальный формат ERA ETP" style="cursor:help;">⭐</span>
+                                <span title="<?= $lang === 'en' ? 'Unique ERA ETP format' : 'Уникальный формат ERA ETP' ?>" style="cursor:help;">⭐</span>
                             <?php endif; ?>
                         </span>
                     </td>
                     <td>
                         <div class="price-main"><?= number_format($price,0,'.',' ') ?>&nbsp;₽</div>
                         <?php if ($start_price && $start_price != $price): ?>
-                            <div class="price-sub">Старт: <?= number_format($start_price,0,'.',' ') ?>&nbsp;₽</div>
+                            <div class="price-sub"><?= $lang === 'en' ? 'Start:' : 'Старт:' ?> <?= number_format($start_price,0,'.',' ') ?>&nbsp;₽</div>
                         <?php endif; ?>
                     </td>
                     <td>
@@ -367,7 +397,7 @@ include 'header.php';
                             <?= $display_status ?>
                         </span>
                         <?php if (!$is_finished && $end_ts && !empty($lot['total_bids'])): ?>
-                            <div class="price-sub" style="margin-top:2px;"><?= (int)$lot['total_bids'] ?> ставок</div>
+                            <div class="price-sub" style="margin-top:2px;"><?= (int)$lot['total_bids'] ?> <?= $lang === 'en' ? 'bids' : 'ставок' ?></div>
                         <?php endif; ?>
                     </td>
                     <td>
@@ -377,7 +407,7 @@ include 'header.php';
                         <a href="<?= htmlspecialchars($btn_url) ?>"
                            class="btn-view <?= $is_scand ? 'scand' : '' ?>"
                            <?= $onclick ? 'onclick="'.$onclick.'"' : '' ?>>
-                            <?= $is_scand ? '🔥 Участвовать' : 'Подробнее' ?>
+                            <?= $is_scand ? ($lang === 'en' ? '🔥 Bid now' : '🔥 Участвовать') : ($lang === 'en' ? 'View details' : 'Подробнее') ?>
                         </a>
                     </td>
                 </tr>

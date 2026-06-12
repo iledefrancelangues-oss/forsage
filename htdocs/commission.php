@@ -127,76 +127,76 @@ include 'header.php';
 
 <main class="commission-wrap">
     <div class="form-card">
-        <h2>Выставить лот</h2>
-        <p class="subtitle">Заполните данные для размещения лота в реестре комиссионной продажи</p>
+        <h2><?= $lang === 'en' ? 'List a lot' : 'Выставить лот' ?></h2>
+        <p class="subtitle"><?= $lang === 'en' ? 'Fill in the details to publish the lot in the commission-sales registry' : 'Заполните данные для размещения лота в реестре комиссионной продажи' ?></p>
 
         <?= $message ?>
 
         <?php if (!$is_auth): ?>
             <div class="alert error">
-                Для подачи объявления необходимо
-                <a href="#" onclick="openAuth && openAuth('login'); return false;" style="color:inherit;font-weight:800;">войти в систему</a>.
+                <?= $lang === 'en' ? 'To list a lot you need to' : 'Для подачи объявления необходимо' ?>
+                <a href="#" onclick="openAuth && openAuth('login'); return false;" style="color:inherit;font-weight:800;"><?= $lang === 'en' ? 'sign in' : 'войти в систему' ?></a>.
             </div>
         <?php else: ?>
             <form method="POST" enctype="multipart/form-data">
                 <div class="f-group">
-                    <label>Название лота</label>
-                    <input type="text" name="title" placeholder="Например: Складской комплекс 500м²" required>
+                    <label><?= $lang === 'en' ? 'Lot title' : 'Название лота' ?></label>
+                    <input type="text" name="title" placeholder="<?= $lang === 'en' ? 'For example: Warehouse complex 500m²' : 'Например: Складской комплекс 500м²' ?>" required>
                 </div>
                 <div class="f-row">
                     <div class="f-group">
-                        <label>Категория</label>
+                        <label><?= $lang === 'en' ? 'Category' : 'Категория' ?></label>
                         <select name="lot_type" required>
-                            <option value="Недвижимость">Недвижимость</option>
-                            <option value="Транспорт">Транспорт</option>
-                            <option value="Оборудование">Оборудование</option>
-                            <option value="Прочее">Прочее</option>
+                            <option value="Недвижимость"><?= $lang === 'en' ? 'Real estate' : 'Недвижимость' ?></option>
+                            <option value="Транспорт"><?= $lang === 'en' ? 'Transport' : 'Транспорт' ?></option>
+                            <option value="Оборудование"><?= $lang === 'en' ? 'Equipment' : 'Оборудование' ?></option>
+                            <option value="Прочее"><?= $lang === 'en' ? 'Other' : 'Прочее' ?></option>
                         </select>
                     </div>
                     <div class="f-group">
-                        <label>Цена (₽)</label>
+                        <label><?= $lang === 'en' ? 'Price (₽)' : 'Цена (₽)' ?></label>
                         <input type="number" name="price" placeholder="500000" required>
                     </div>
                 </div>
                 <div class="f-group">
-                    <label>Регион</label>
-                    <input type="text" name="region" placeholder="г. Самара" required>
+                    <label><?= $lang === 'en' ? 'Region' : 'Регион' ?></label>
+                    <input type="text" name="region" placeholder="<?= $lang === 'en' ? 'e.g. Samara' : 'г. Самара' ?>" required>
                 </div>
                 <div class="f-group">
-                    <label>Описание</label>
-                    <textarea name="description" rows="4" placeholder="Основные характеристики, состояние, особенности..."></textarea>
+                    <label><?= $lang === 'en' ? 'Description' : 'Описание' ?></label>
+                    <textarea name="description" rows="4" placeholder="<?= $lang === 'en' ? 'Main features, condition, highlights...' : 'Основные характеристики, состояние, особенности...' ?>"></textarea>
                 </div>
                 <div class="f-group">
-                    <label>Фотографии лота</label>
+                    <label><?= $lang === 'en' ? 'Lot photos' : 'Фотографии лота' ?></label>
                     <input type="file" name="images[]" accept=".jpg,.jpeg,.png" multiple>
-                    <span class="hint">Можно загрузить несколько изображений (jpg, jpeg, png). Общий размер до 5 МБ.</span>
+                    <span class="hint"><?= $lang === 'en' ? 'You can upload several images (jpg, jpeg, png). Total size up to 5 MB.' : 'Можно загрузить несколько изображений (jpg, jpeg, png). Общий размер до 5 МБ.' ?></span>
                 </div>
 
-                <div class="section-title">📄 Документы к лоту</div>
+                <div class="section-title">📄 <?= $lang === 'en' ? 'Lot documents' : 'Документы к лоту' ?></div>
 
                 <div class="access-block">
                     <div class="access-block-title">
-                        <span class="badge-public">Публичный</span> Документы для всех
+                        <span class="badge-public"><?= $lang === 'en' ? 'Public' : 'Публичный' ?></span> <?= $lang === 'en' ? 'Documents for everyone' : 'Документы для всех' ?>
                     </div>
-                    <div class="access-block-desc">Видны всем посетителям без регистрации и оплаты. Например: общее описание, фото-паспорт, техусловия.</div>
+                    <div class="access-block-desc"><?= $lang === 'en' ? 'Visible to all visitors with no signup or payment. E.g. general description, photo-passport, technical conditions.' : 'Видны всем посетителям без регистрации и оплаты. Например: общее описание, фото-паспорт, техусловия.' ?></div>
                     <div class="f-group" style="margin-bottom:0;">
                         <input type="file" name="doc_public[]" accept=".pdf,.doc,.docx" multiple>
-                        <span class="hint">PDF, DOC, DOCX. До 10 МБ на файл. Можно несколько.</span>
+                        <span class="hint">PDF, DOC, DOCX. <?= $lang === 'en' ? 'Up to 10 MB per file. Multiple files allowed.' : 'До 10 МБ на файл. Можно несколько.' ?></span>
                     </div>
                 </div>
 
                 <div class="access-block">
                     <div class="access-block-title">
-                        <span class="badge-paid">Платный</span> Документы для оплативших отчёт
+                        <span class="badge-paid"><?= $lang === 'en' ? 'Paid' : 'Платный' ?></span> <?= $lang === 'en' ? 'Documents for buyers of the report' : 'Документы для оплативших отчёт' ?>
                     </div>
-                    <div class="access-block-desc">Видны только после оплаты тарифа «Отчёт по лоту» (1 390 ₽). Например: оценочный отчёт, технический паспорт, юридическая экспертиза.</div>
+                    <div class="access-block-desc"><?= $lang === 'en' ? 'Visible only after purchasing the “Lot report” plan (1,390 ₽). E.g. valuation report, technical passport, legal opinion.' : 'Видны только после оплаты тарифа «Отчёт по лоту» (1 390 ₽). Например: оценочный отчёт, технический паспорт, юридическая экспертиза.' ?></div>
                     <div class="f-group" style="margin-bottom:0;">
                         <input type="file" name="doc_paid[]" accept=".pdf,.doc,.docx" multiple>
                         <span class="hint">PDF, DOC, DOCX. До 10 МБ на файл. Можно несколько.</span>
                     </div>
                 </div>
 
-                <button type="submit" class="submit-btn">Опубликовать лот</button>
+                <button type="submit" class="submit-btn"><?= $lang === 'en' ? 'Publish lot' : 'Опубликовать лот' ?></button>
             </form>
         <?php endif; ?>
     </div>

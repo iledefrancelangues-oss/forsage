@@ -1,0 +1,14 @@
+# Запрет на исполнение PHP/CGI/скриптов в uploads. Только статика.
+<FilesMatch "\.(php|phtml|phar|php3|php4|php5|php7|pht|cgi|pl|py|sh|asp|aspx|jsp)$">
+    Require all denied
+</FilesMatch>
+
+# Дополнительно: отключаем engine на всякий случай
+<IfModule mod_php7.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php8.c>
+    php_flag engine off
+</IfModule>
+
+Options -ExecCGI

@@ -1,12 +1,13 @@
 <?php
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', '0');
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
 require_once 'db.php';
+require_once 'db_schema_extra.php';
 
 $filter_type = $_GET['type'] ?? '';
 $filter_region = $_GET['region'] ?? '';
@@ -39,10 +40,17 @@ $stmt = $pdo->prepare("
 $stmt->execute($params);
 $lots = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+/* Preload current user's favorites in one query so the stars render filled. */
+$_user_id = (int)($_SESSION['user_id'] ?? 0);
+$_fav_ids = array_map(fn($l) => (int)$l['id'], $lots);
+require_once 'favorites_widget.php';
+$_favs = favorites_lookup($pdo, $_user_id, 'torgi', $_fav_ids);
+
 $types = $pdo->query("SELECT DISTINCT lot_type FROM torgi WHERE lot_type IS NOT NULL AND lot_type != ''")->fetchAll(PDO::FETCH_COLUMN);
 $regions = $pdo->query("SELECT DISTINCT region FROM torgi WHERE region IS NOT NULL AND region != ''")->fetchAll(PDO::FETCH_COLUMN);
 
 include 'header.php';
+favorites_render_assets($lang ?? 'ru');
 ?>
 <style>
 .torgi-list-wrap {
@@ -95,6 +103,10 @@ include 'header.php';
     border-radius: 16px;
     overflow: hidden;
     transition: transform 0.2s, box-shadow 0.2s;
+    color: inherit;
+    text-decoration: none;
+    display: block;
+    cursor: pointer;
 }
 .lot-card:hover {
     transform: translateY(-4px);
@@ -206,46 +218,46 @@ include 'header.php';
 </style>
 <main class="torgi-list-wrap">
     <div class="page-header">
-        <h1>Комиссионная продажа</h1>
-        <a href="commission.php" class="btn-add-lot">+ Разместить лот</a>
+        <h1><?= $lang === 'en' ? 'Commission sales' : 'Комиссионная продажа' ?></h1>
+        <a href="commission.php" class="btn-add-lot"><?= $lang === 'en' ? '+ List a lot' : '+ Разместить лот' ?></a>
     </div>
     
     <form method="GET" class="filters">
         <div class="filter-group">
-            <label>Тип:</label>
+            <label><?= $lang === 'en' ? 'Type:' : 'Тип:' ?></label>
             <select name="type">
-                <option value="">Все</option>
+                <option value=""><?= $lang === 'en' ? 'All' : 'Все' ?></option>
                 <?php foreach ($types as $t): ?>
                 <option value="<?= htmlspecialchars($t) ?>" <?= $filter_type === $t ? 'selected' : '' ?>><?= htmlspecialchars($t) ?></option>
                 <?php endforeach; ?>
             </select>
         </div>
         <div class="filter-group">
-            <label>Регион:</label>
+            <label><?= $lang === 'en' ? 'Region:' : 'Регион:' ?></label>
             <select name="region">
-                <option value="">Все</option>
+                <option value=""><?= $lang === 'en' ? 'All' : 'Все' ?></option>
                 <?php foreach ($regions as $r): ?>
                 <option value="<?= htmlspecialchars($r) ?>" <?= $filter_region === $r ? 'selected' : '' ?>><?= htmlspecialchars($r) ?></option>
                 <?php endforeach; ?>
             </select>
         </div>
         <div class="filter-group">
-            <label>Статус:</label>
+            <label><?= $lang === 'en' ? 'Status:' : 'Статус:' ?></label>
             <select name="status">
-                <option value="">Все</option>
-                <option value="open" <?= $filter_status === 'open' ? 'selected' : '' ?>>Открыт для предложений</option>
-                <option value="closed" <?= $filter_status === 'closed' ? 'selected' : '' ?>>Сделка завершена</option>
+                <option value=""><?= $lang === 'en' ? 'All' : 'Все' ?></option>
+                <option value="open" <?= $filter_status === 'open' ? 'selected' : '' ?>><?= $lang === 'en' ? 'Open for offers' : 'Открыт для предложений' ?></option>
+                <option value="closed" <?= $filter_status === 'closed' ? 'selected' : '' ?>><?= $lang === 'en' ? 'Deal closed' : 'Сделка завершена' ?></option>
             </select>
         </div>
         <div class="filter-group">
-            <button type="submit">Применить</button>
-            <a href="torgi_list.php" class="reset" style="background:#64748b; color:white; padding:8px 16px; border-radius:8px; text-decoration:none;">Сбросить</a>
+            <button type="submit"><?= $lang === 'en' ? 'Apply' : 'Применить' ?></button>
+            <a href="torgi_list.php" class="reset" style="background:#64748b; color:white; padding:8px 16px; border-radius:8px; text-decoration:none;"><?= $lang === 'en' ? 'Reset' : 'Сбросить' ?></a>
         </div>
     </form>
     
     <?php if (empty($lots)): ?>
         <div class="empty-state">
-            <p>Лоты не найдены</p>
+            <p><?= $lang === 'en' ? 'No lots found' : 'Лоты не найдены' ?></p>
         </div>
     <?php else: ?>
         <div class="lots-grid">
@@ -260,20 +272,33 @@ include 'header.php';
                     'closed', 'pending sale' => 'status-closed',
                     default        => 'status-other',
                 };
-                $status_text = match($lot['status']) {
-                    'open'         => 'Открыт для предложений',
-                    'closed'       => 'Сделка завершена',
-                    'pending sale' => 'В сделке',
-                    'published'    => 'Опубликован',
-                    default        => $lot['status'] ?: '—',
-                };
+                if ($lang === 'en') {
+                    $status_text = match($lot['status']) {
+                        'open'         => 'Open for offers',
+                        'closed'       => 'Deal closed',
+                        'pending sale' => 'Pending sale',
+                        'published'    => 'Published',
+                        default        => $lot['status'] ?: '—',
+                    };
+                } else {
+                    $status_text = match($lot['status']) {
+                        'open'         => 'Открыт для предложений',
+                        'closed'       => 'Сделка завершена',
+                        'pending sale' => 'В сделке',
+                        'published'    => 'Опубликован',
+                        default        => $lot['status'] ?: '—',
+                    };
+                }
+                $view_url = 'torgi_view.php?id=' . (int)$lot['id'];
             ?>
-            <div class="lot-card">
+            <div class="lot-card-wrap" style="position:relative;">
+                <?= favorites_render_star('torgi', (int)$lot['id'], !empty($_favs[(int)$lot['id']]), $lang) ?>
+                <a href="<?= htmlspecialchars($view_url) ?>" class="lot-card">
                 <div class="lot-image">
                     <?php if ($first_image): ?>
                         <img src="<?= $first_image ?>" alt="<?= htmlspecialchars($lot['title']) ?>">
                     <?php else: ?>
-                        <div class="no-image">Нет фото</div>
+                        <div class="no-image"><?= $lang === 'en' ? 'No photo' : 'Нет фото' ?></div>
                     <?php endif; ?>
                 </div>
                 <div class="lot-info">
@@ -281,11 +306,12 @@ include 'header.php';
                     <div class="lot-price"><?= number_format($lot['price'], 0, '.', ' ') ?> ₽</div>
                     <div class="lot-meta">
                         <?= htmlspecialchars($lot['region']) ?> • <?= htmlspecialchars($lot['lot_type']) ?><br>
-                        Создан: <?= date('d.m.Y', strtotime($lot['date_created'])) ?>
+                        <?= $lang === 'en' ? 'Created: ' : 'Создан: ' ?><?= date('d.m.Y', strtotime($lot['date_created'])) ?>
                     </div>
                     <div class="lot-status <?= $status_class ?>"><?= $status_text ?></div>
-                    <a href="torgi_view.php?id=<?= $lot['id'] ?>" class="btn-details">Подробнее</a>
+                    <span class="btn-details"><?= $lang === 'en' ? 'View details' : 'Подробнее' ?></span>
                 </div>
+            </a>
             </div>
             <?php endforeach; ?>
         </div>

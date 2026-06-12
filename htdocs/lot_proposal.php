@@ -8,6 +8,15 @@
 ob_start();
 if (session_status() === PHP_SESSION_NONE) session_start();
 
+if (!isset($_SESSION['lang'])) {
+    $accept_lang = $_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? 'ru';
+    $_SESSION['lang'] = (substr($accept_lang, 0, 2) === 'ru') ? 'ru' : 'en';
+}
+if (isset($_GET['lang'])) {
+    $_SESSION['lang'] = ($_GET['lang'] === 'en') ? 'en' : 'ru';
+}
+$lang = $_SESSION['lang'];
+
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/db_schema_extra.php';
 date_default_timezone_set('Europe/Moscow');
@@ -154,28 +163,28 @@ include 'header.php';
 </style>
 
 <main class="proposal-wrap">
-    <a href="reestr.php" class="p-back">← К реестру</a>
+    <a href="reestr.php" class="p-back"><?= $lang === 'en' ? '← To registry' : '← К реестру' ?></a>
     <div class="p-card">
         <div class="p-header">
             <span class="p-badge">📨 Запрос предложений</span>
             <div class="p-title"><?= htmlspecialchars($lot['title'], ENT_QUOTES, 'UTF-8') ?></div>
-            <div class="p-sub">Лот №<?= (int)$lot['id'] ?> · Победитель — наибольшая цена</div>
+            <div class="p-sub"><?= $lang === 'en' ? 'Lot №' : 'Лот №' ?><?= (int)$lot['id'] ?> · <?= $lang === 'en' ? 'Winner' : 'Победитель' ?> — наибольшая цена</div>
         </div>
         <div class="p-body">
             <div class="p-row">
-                <span class="lbl">Начальная (минимальная) цена</span>
+                <span class="lbl"><?= $lang === 'en' ? 'Starting (minimum) price' : 'Начальная (минимальная) цена' ?></span>
                 <span class="val"><?= number_format((float)$lot['start_price'], 0, '.', ' ') ?> ₽</span>
             </div>
             <div class="p-row">
-                <span class="lbl">Подано предложений</span>
+                <span class="lbl"><?= $lang === 'en' ? 'Offers submitted' : 'Подано предложений' ?></span>
                 <span class="val" id="offersCount"><?= $offers_count ?></span>
             </div>
 
             <?php if ($deadline_ts): ?>
-            <div class="p-deadline">До окончания приёма предложений</div>
+            <div class="p-deadline"><?= $lang === 'en' ? 'Time left for submissions' : 'До окончания приёма предложений' ?></div>
             <div class="p-timer" id="pTimer">--:--:--</div>
             <div style="text-align:center;font-size:12px;color:#94a3b8;">
-                Дедлайн: <?= date('d.m.Y H:i', $deadline_ts) ?>
+                <?= $lang === 'en' ? 'Deadline:' : 'Дедлайн:' ?> <?= date('d.m.Y H:i', $deadline_ts) ?>
             </div>
             <?php endif; ?>
 
@@ -184,32 +193,32 @@ include 'header.php';
                 <div class="p-finished">
                     <span style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#92400e;">Победитель</span>
                     <b><?= number_format((float)$winner['price'], 0, '.', ' ') ?> ₽</b>
-                    <div style="color:#475569;">Участник: <?= htmlspecialchars($winner['username']) ?></div>
+                    <div style="color:#475569;"><?= $lang === 'en' ? 'Bidder:' : 'Участник:' ?> <?= htmlspecialchars($winner['username']) ?></div>
                 </div>
                 <?php else: ?>
-                <div class="p-finished">Срок подачи истёк, предложений не поступило.</div>
+                <div class="p-finished"><?= $lang === 'en' ? 'Submission deadline passed; no offers were received.' : 'Срок подачи истёк, предложений не поступило.' ?></div>
                 <?php endif; ?>
             <?php elseif ($is_owner): ?>
                 <div class="p-info">Вы являетесь владельцем лота — приём предложений идёт. Имена участников и цены будут раскрыты после дедлайна.</div>
             <?php elseif ($user_id <= 0): ?>
-                <div class="p-info">Чтобы подать предложение, <a href="login.php" style="color:#1e40af;text-decoration:underline;">войдите в аккаунт</a>.</div>
+                <div class="p-info"><?= $lang === 'en' ? 'To submit an offer,' : 'Чтобы подать предложение,' ?> <a href="login.php" style="color:#1e40af;text-decoration:underline;"><?= $lang === 'en' ? 'sign in' : 'войдите в аккаунт' ?></a>.</div>
             <?php else: ?>
                 <form id="pForm" class="p-form" autocomplete="off">
                     <h3><?= $my_offer ? 'Изменить ваше предложение' : 'Подать предложение' ?></h3>
                     <input type="hidden" name="lot_id" value="<?= (int)$lot['id'] ?>">
-                    <label>Ваша цена (₽) <span style="color:#ef4444;">*</span></label>
+                    <label><?= $lang === 'en' ? 'Your price (₽)' : 'Ваша цена (₽)' ?> <span style="color:#ef4444;">*</span></label>
                     <input type="number" name="price" id="pPrice" step="1" min="<?= (int)$lot['start_price'] ?>"
                            value="<?= $my_offer ? (int)$my_offer['price'] : (int)$lot['start_price'] ?>" required>
-                    <div class="hint">Цена должна быть не ниже начальной (<?= number_format((float)$lot['start_price'],0,'.',' ') ?> ₽). Победителем станет участник с наибольшей ценой.</div>
-                    <label>Комментарий</label>
+                    <div class="hint"><?= $lang === 'en' ? 'Price must be at least the starting price (' : 'Цена должна быть не ниже начальной (' ?><?= number_format((float)$lot['start_price'],0,'.',' ') ?> <?= $lang === 'en' ? '₽). The bidder with the highest price wins.' : '₽). Победителем станет участник с наибольшей ценой.' ?></div>
+                    <label><?= $lang === 'en' ? 'Comment' : 'Комментарий' ?></label>
                     <textarea name="comment" rows="3" placeholder="Условия оплаты, сроки и т. п."><?= $my_offer ? htmlspecialchars($my_offer['comment'] ?? '') : '' ?></textarea>
                     <button type="submit" id="pSubmit"><?= $my_offer ? 'Сохранить изменение' : 'Отправить предложение' ?></button>
                     <div id="pMsg" class="p-msg"></div>
                     <?php if ($my_offer): ?>
                     <div class="hint" style="margin-top:8px;">
-                        Текущее предложение: <b><?= number_format((float)$my_offer['price'], 0, '.', ' ') ?> ₽</b>,
-                        обновлено <?= date('d.m.Y H:i', strtotime($my_offer['updated_at'])) ?>.
-                        Вы можете изменять его до дедлайна.
+                        <?= $lang === 'en' ? 'Your current offer:' : 'Текущее предложение:' ?> <b><?= number_format((float)$my_offer['price'], 0, '.', ' ') ?> ₽</b>,
+                        <?= $lang === 'en' ? 'updated' : 'обновлено' ?> <?= date('d.m.Y H:i', strtotime($my_offer['updated_at'])) ?>.
+                        <?= $lang === 'en' ? 'You can revise it until the deadline.' : 'Вы можете изменять его до дедлайна.' ?>
                     </div>
                     <?php endif; ?>
                 </form>
@@ -217,7 +226,7 @@ include 'header.php';
 
             <?php if (!empty($lot['description'])): ?>
             <div style="margin-top:22px;padding-top:16px;border-top:1px solid #e2e8f0;">
-                <div style="font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Описание</div>
+                <div style="font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;"><?= $lang === 'en' ? 'Description' : 'Описание' ?></div>
                 <div style="color:#0f172a;font-size:14px;line-height:1.6;white-space:pre-line;"><?= htmlspecialchars($lot['description']) ?></div>
             </div>
             <?php endif; ?>

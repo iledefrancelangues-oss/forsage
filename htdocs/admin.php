@@ -1,22 +1,15 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
 session_start();
 header('Content-Type: text/html; charset=utf-8');
 
 include 'db.php';
+require_once __DIR__ . '/admin_only.php';
 require_once __DIR__ . '/db_schema_extra.php';
 
-// Принудительная установка кодировки
 $pdo->exec("SET NAMES utf8mb4");
 $pdo->exec("SET CHARACTER SET utf8mb4");
 
 $tab = $_GET['tab'] ?? 'users';
-
-if (!isset($_SESSION['user_id'])) {
-    header('Location: index.php');
-    exit;
-}
 
 // Обработка действий
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
@@ -225,7 +218,87 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     $_SESSION['admin_msg'] = 'Лот и фото обновлены';
     header("Location: admin.php?tab=commission");
     exit;
+
+} elseif ($_POST['action'] === 'edit_scandinavian') {
+    $lotId = (int)($_POST['lot_id'] ?? 0);
+    if ($lotId <= 0) {
+        $_SESSION['admin_msg'] = '⚠️ Не задан ID лота';
+        header("Location: admin.php?tab=scandinavian");
+        exit;
+    }
+
+    $title          = trim($_POST['title'] ?? '');
+    $description    = trim($_POST['description'] ?? '');
+    $start_price    = (float)($_POST['start_price'] ?? 0);
+    $price          = (float)($_POST['price'] ?? 0);
+    $bid_step       = (int)($_POST['bid_step'] ?? 0);
+    $timer_start    = (int)($_POST['timer_start'] ?? 0);
+    $timer_add      = (int)($_POST['timer_add'] ?? 0);
+    $deposit        = (float)($_POST['deposit'] ?? 0);
+    $end_time       = trim($_POST['end_time'] ?? '');
+    $max_end_time   = trim($_POST['max_end_time'] ?? '');
+    $auction_status = $_POST['auction_status'] ?? 'active';
+    $trade_status   = $_POST['trade_status'] ?? 'active';
+    $started_at_in  = trim($_POST['started_at'] ?? '');
+
+    $allowed_auction = ['active','finished','single','failed','draft'];
+    $allowed_trade   = ['active','finished','cancelled'];
+    if (!in_array($auction_status, $allowed_auction, true)) $auction_status = 'active';
+    if (!in_array($trade_status,   $allowed_trade,   true)) $trade_status   = 'active';
+
+    $sql = "UPDATE lots
+              SET title          = ?,
+                  description    = ?,
+                  start_price    = ?,
+                  price          = ?,
+                  bid_step       = ?,
+                  timer_start    = ?,
+                  timer_add      = ?,
+                  deposit        = ?,
+                  end_time       = ?,
+                  max_end_time   = ?,
+                  auction_status = ?,
+                  trade_status   = ?,
+                  started_at     = ?
+            WHERE id = ?
+              AND auction_type = 'scandinavian'";
+
+    $end_time_val     = $end_time !== '' ? $end_time : null;
+    $max_end_time_val = $max_end_time !== '' ? $max_end_time : null;
+    $started_at_val   = $started_at_in === '' ? null : $started_at_in;
+
+    try {
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([
+            $title, $description, $start_price, $price, $bid_step,
+            $timer_start, $timer_add, $deposit,
+            $end_time_val, $max_end_time_val,
+            $auction_status, $trade_status, $started_at_val,
+            $lotId,
+        ]);
+        $_SESSION['admin_msg'] = '✏️ Скандинавский лот обновлён';
+    } catch (Exception $e) {
+        $_SESSION['admin_msg'] = '⚠️ Ошибка: ' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8');
+    }
+    header("Location: admin.php?tab=scandinavian");
+    exit;
+
+} elseif ($_POST['action'] === 'delete_scandinavian') {
+    $lotId = (int)($_POST['lot_id'] ?? 0);
+    if ($lotId > 0) {
+        try {
+            $stmt = $pdo->prepare("DELETE FROM lots WHERE id = ? AND auction_type = 'scandinavian'");
+            $stmt->execute([$lotId]);
+            $_SESSION['admin_msg'] = '🗑️ Скандинавский лот удалён';
+        } catch (Exception $e) {
+            $_SESSION['admin_msg'] = '⚠️ Ошибка удаления';
+        }
+    }
+    header("Location: admin.php?tab=scandinavian");
+    exit;
+
 }
+
 }
 // Поиск и фильтры для пользователей
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
@@ -439,6 +512,7 @@ td.price-cell {
         <a href="admin.php?tab=commission" class="tab-btn <?= $tab === 'commission' ? 'active' : '' ?>">🏷️ Комиссионные лоты</a>
         <a href="admin.php?tab=inspection" class="tab-btn <?= $tab === 'inspection' ? 'active' : '' ?>">🔍 Заявки на осмотр</a>
         <a href="admin.php?tab=closed_admit" class="tab-btn <?= $tab === 'closed_admit' ? 'active' : '' ?>">🔐 Закрытые аукционы</a>
+        <a href="admin.php?tab=scandinavian" class="tab-btn <?= $tab === 'scandinavian' ? 'active' : '' ?>">⚡ Скандинавские аукционы</a>
         <a href="admin_payments.php" class="tab-btn">💳 Оплата отчётов</a>
     </div>
 
@@ -739,29 +813,21 @@ td.price-cell {
 
     <!-- Редактировать -->
     <?php
-$jstitle       = addslashes($lot['title'] ?? '');
-$jscategory    = addslashes($lot['lottype'] ?? ($lot['category'] ?? ''));
-$jsregion      = addslashes($lot['region'] ?? '');
-$jsdescription = addslashes($lot['description'] ?? '');
-$jsstatus      = addslashes($lot['status'] ?? '');
-$jsdate        = addslashes($lot['datecreated'] ?? ($lot['date_created'] ?? ($lot['date'] ?? '')));
-?>
-<button
-    onclick="return openEditLotModal(
-        <?= (int)$lot['id'] ?>,
-        '<?= $jstitle ?>',
-        '<?= $jscategory ?>',
-        '<?= (float)$lot['price'] ?>',
-        '<?= $jsregion ?>',
-        '<?= $jsdescription ?>',
-        '<?= $jsstatus ?>',
-        '<?= $jsdate ?>'
-    );"
-    class="btn btn-warning btn-sm"
-    title="Редактировать"
->
-    ✎
-</button>
+    $lotPayload = json_encode([
+        'id'          => (int)$lot['id'],
+        'title'       => (string)($lot['title'] ?? ''),
+        'category'    => (string)($lot['lottype'] ?? ($lot['category'] ?? '')),
+        'price'       => (float)($lot['price'] ?? 0),
+        'region'      => (string)($lot['region'] ?? ''),
+        'description' => (string)($lot['description'] ?? ''),
+        'status'      => (string)($lot['status'] ?? ''),
+        'datecreated' => (string)($lot['datecreated'] ?? ($lot['date_created'] ?? ($lot['date'] ?? ''))),
+    ], JSON_UNESCAPED_UNICODE);
+    ?>
+    <button type="button"
+        class="btn btn-warning btn-sm lot-edit-btn"
+        data-lot="<?= htmlspecialchars($lotPayload, ENT_QUOTES, 'UTF-8') ?>"
+        title="Редактировать">✎</button>
     <!-- Фото -->
     <a href="torgi_photos.php?id=<?= (int)$lot['id'] ?>"
        class="btn btn-secondary btn-sm"
@@ -938,6 +1004,106 @@ $jsdate        = addslashes($lot['datecreated'] ?? ($lot['date_created'] ?? ($lo
             <?php endforeach; ?>
         <?php endif; ?>
 
+    <?php elseif ($tab === 'scandinavian'): ?>
+        <?php
+        $stmt = $pdo->query("
+            SELECT l.*, u.username AS owner_name, u.email AS owner_email
+              FROM lots l
+              LEFT JOIN users u ON u.id = l.owner_id
+             WHERE l.auction_type = 'scandinavian'
+             ORDER BY l.id DESC
+        ");
+        $scLots = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        ?>
+        <h3>⚡ Скандинавские аукционы</h3>
+        <p style="color:#94a3b8;font-size:13px;margin:6px 0 16px;">
+            Редактирование лотов типа «scandinavian» из таблицы <code>lots</code>.
+            Изменения влияют на живые торги — будьте внимательны.
+        </p>
+        <?php if (empty($scLots)): ?>
+            <div style="text-align:center;padding:60px;color:#64748b;">Нет скандинавских аукционов</div>
+        <?php else: ?>
+            <div style="overflow-x:auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Название</th>
+                        <th>Организатор</th>
+                        <th>Старт / Текущая</th>
+                        <th>Шаг</th>
+                        <th>Таймер +</th>
+                        <th>End time</th>
+                        <th>Статус</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                <?php foreach ($scLots as $l): ?>
+                    <tr>
+                        <td>#<?= (int)$l['id'] ?></td>
+                        <td>
+                            <b><?= htmlspecialchars($l['title'] ?? '', ENT_QUOTES, 'UTF-8') ?></b><br>
+                            <small style="color:#64748b;">
+                                <a href="lot_scandinavian.php?id=<?= (int)$l['id'] ?>" target="_blank">Страница лота</a>
+                            </small>
+                        </td>
+                        <td>
+                            <?= htmlspecialchars($l['owner_name'] ?? '—', ENT_QUOTES, 'UTF-8') ?>
+                            <br><small style="color:#64748b;"><?= htmlspecialchars($l['owner_email'] ?? '', ENT_QUOTES, 'UTF-8') ?></small>
+                        </td>
+                        <td>
+                            <small style="color:#94a3b8;"><?= number_format((float)$l['start_price'], 0, '.', ' ') ?> ₽</small><br>
+                            <b style="color:#fbbf24;"><?= number_format((float)$l['price'], 0, '.', ' ') ?> ₽</b>
+                        </td>
+                        <td><?= (int)$l['bid_step'] ?> ₽</td>
+                        <td><?= (int)$l['timer_add'] ?> с</td>
+                        <td><small><?= htmlspecialchars($l['end_time'] ?? '', ENT_QUOTES, 'UTF-8') ?></small></td>
+                        <td>
+                            <?php
+                            $st = strtolower(trim($l['auction_status'] ?? ''));
+                            $st_color = ['active'=>'#22c55e','finished'=>'#3b82f6','single'=>'#3b82f6','failed'=>'#ef4444','draft'=>'#64748b'][$st] ?? '#64748b';
+                            ?>
+                            <span style="display:inline-block;padding:3px 8px;border-radius:999px;font-size:11px;background:<?= $st_color ?>20;color:<?= $st_color ?>;">
+                                <?= htmlspecialchars($st ?: '—', ENT_QUOTES, 'UTF-8') ?>
+                            </span>
+                        </td>
+                        <td>
+                            <?php
+                            $scLotData = json_encode([
+                                'id'             => (int)$l['id'],
+                                'title'          => (string)($l['title'] ?? ''),
+                                'description'    => (string)($l['description'] ?? ''),
+                                'start_price'    => (float)($l['start_price'] ?? 0),
+                                'price'          => (float)($l['price'] ?? 0),
+                                'bid_step'       => (int)($l['bid_step'] ?? 0),
+                                'timer_start'    => (int)($l['timer_start'] ?? 0),
+                                'timer_add'      => (int)($l['timer_add'] ?? 0),
+                                'deposit'        => (float)($l['deposit'] ?? 0),
+                                'end_time'       => (string)($l['end_time'] ?? ''),
+                                'max_end_time'   => (string)($l['max_end_time'] ?? ''),
+                                'started_at'     => (string)($l['started_at'] ?? ''),
+                                'auction_status' => (string)($l['auction_status'] ?? 'active'),
+                                'trade_status'   => (string)($l['trade_status'] ?? 'active'),
+                            ], JSON_UNESCAPED_UNICODE);
+                            ?>
+                            <button type="button"
+                                class="btn btn-warning btn-sm sc-edit-btn"
+                                data-sc-lot="<?= htmlspecialchars($scLotData, ENT_QUOTES, 'UTF-8') ?>"
+                                title="Редактировать">✎</button>
+                            <form method="POST" style="display:inline;" onsubmit="return confirm('Удалить скандинавский лот «<?= addslashes($l['title'] ?? '') ?>»? Это необратимо.');">
+                                <input type="hidden" name="lot_id" value="<?= (int)$l['id'] ?>">
+                                <input type="hidden" name="action" value="delete_scandinavian">
+                                <button type="submit" class="btn btn-danger btn-sm">🗑️</button>
+                            </form>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+            </div>
+        <?php endif; ?>
+
     <?php endif; ?>
 </div>
 
@@ -1028,6 +1194,85 @@ $jsdate        = addslashes($lot['datecreated'] ?? ($lot['date_created'] ?? ($lo
     </div>
 </div>
 
+<!-- Модалка редактирования скандинавского лота -->
+<div id="editScandinavianModal" class="modal">
+    <div class="modal-content" style="max-width:640px;">
+        <h3>⚡ Редактировать скандинавский аукцион</h3>
+        <form method="POST">
+            <input type="hidden" name="lot_id" id="esc_lot_id">
+            <input type="hidden" name="action" value="edit_scandinavian">
+
+            <label>Название</label>
+            <input type="text" name="title" id="esc_title" class="input-field" required>
+
+            <label>Описание</label>
+            <textarea name="description" id="esc_description" class="input-field" rows="4"></textarea>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div>
+                    <label>Стартовая цена (₽)</label>
+                    <input type="number" name="start_price" id="esc_start_price" class="input-field" step="100" required>
+                </div>
+                <div>
+                    <label>Текущая цена (₽)</label>
+                    <input type="number" name="price" id="esc_price" class="input-field" step="100" required>
+                </div>
+                <div>
+                    <label>Шаг (₽)</label>
+                    <input type="number" name="bid_step" id="esc_bid_step" class="input-field" step="100" required>
+                </div>
+                <div>
+                    <label>Задаток (₽)</label>
+                    <input type="number" name="deposit" id="esc_deposit" class="input-field" step="100">
+                </div>
+                <div>
+                    <label>Таймер старт (сек)</label>
+                    <input type="number" name="timer_start" id="esc_timer_start" class="input-field" min="0" step="1">
+                </div>
+                <div>
+                    <label>Таймер + на ставку (сек)</label>
+                    <input type="number" name="timer_add" id="esc_timer_add" class="input-field" min="0" step="1" required>
+                </div>
+                <div>
+                    <label>Статус аукциона</label>
+                    <select name="auction_status" id="esc_auction_status" class="input-field">
+                        <option value="active">active</option>
+                        <option value="draft">draft</option>
+                        <option value="finished">finished</option>
+                        <option value="single">single</option>
+                        <option value="failed">failed</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Статус сделки</label>
+                    <select name="trade_status" id="esc_trade_status" class="input-field">
+                        <option value="active">active</option>
+                        <option value="finished">finished</option>
+                        <option value="cancelled">cancelled</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Старт торгов (started_at)</label>
+                    <input type="text" name="started_at" id="esc_started_at" class="input-field" placeholder="YYYY-MM-DD HH:MM:SS">
+                </div>
+                <div>
+                    <label>End time текущий</label>
+                    <input type="text" name="end_time" id="esc_end_time" class="input-field" placeholder="YYYY-MM-DD HH:MM:SS">
+                </div>
+                <div style="grid-column:1/-1;">
+                    <label>Max end time (потолок)</label>
+                    <input type="text" name="max_end_time" id="esc_max_end_time" class="input-field" placeholder="YYYY-MM-DD HH:MM:SS">
+                </div>
+            </div>
+
+            <div class="modal-btns" style="margin-top:14px;">
+                <button type="button" onclick="closeEditScandinavianModal()" class="btn" style="background:#334155;">Отмена</button>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
 // Пользователи
 document.getElementById('selectAll')?.addEventListener('change', function(e) {
@@ -1064,6 +1309,19 @@ document.getElementById('selectAllCommission')?.addEventListener('change', funct
     document.querySelectorAll('.lotCheckbox').forEach(cb => cb.checked = e.target.checked);
 });
 
+document.addEventListener('click', function(e) {
+    var btn = e.target.closest && e.target.closest('.lot-edit-btn');
+    if (!btn) return;
+    e.preventDefault();
+    try {
+        var d = JSON.parse(btn.getAttribute('data-lot') || '{}');
+        openEditLotModal(d.id, d.title, d.category, d.price, d.region, d.description, d.status, d.datecreated);
+    } catch (err) {
+        console.error('lot-edit-btn parse error:', err);
+        alert('Ошибка парсинга данных лота: ' + err.message);
+    }
+});
+
 function openEditLotModal(id, title, category, price, region, description, status, datecreated) {
     document.getElementById('edit_lot_id').value = id;
     document.getElementById('edit_lot_title').value = title;
@@ -1084,6 +1342,48 @@ function openEditLotModal(id, title, category, price, region, description, statu
 function closeEditLotModal() {
     document.getElementById('editLotModal').classList.remove('active');
 }
+
+function openEditScandinavianModalFromData(d) {
+    if (!d) return;
+    document.getElementById('esc_lot_id').value = d.id;
+    document.getElementById('esc_title').value = d.title || '';
+    document.getElementById('esc_description').value = d.description || '';
+    document.getElementById('esc_start_price').value = d.start_price;
+    document.getElementById('esc_price').value = d.price;
+    document.getElementById('esc_bid_step').value = d.bid_step;
+    document.getElementById('esc_timer_start').value = d.timer_start;
+    document.getElementById('esc_timer_add').value = d.timer_add;
+    document.getElementById('esc_deposit').value = d.deposit;
+    document.getElementById('esc_end_time').value = d.end_time || '';
+    document.getElementById('esc_max_end_time').value = d.max_end_time || '';
+    document.getElementById('esc_started_at').value = d.started_at || '';
+    var as = document.getElementById('esc_auction_status');
+    if (as) as.value = d.auction_status || 'active';
+    var ts = document.getElementById('esc_trade_status');
+    if (ts) ts.value = d.trade_status || 'active';
+    document.getElementById('editScandinavianModal').classList.add('active');
+}
+
+document.addEventListener('click', function(e) {
+    var btn = e.target.closest && e.target.closest('.sc-edit-btn');
+    if (!btn) return;
+    e.preventDefault();
+    try {
+        var data = JSON.parse(btn.getAttribute('data-sc-lot') || '{}');
+        openEditScandinavianModalFromData(data);
+    } catch (err) {
+        console.error('sc-edit-btn parse error:', err);
+        alert('Ошибка парсинга данных лота: ' + err.message);
+    }
+});
+
+function closeEditScandinavianModal() {
+    document.getElementById('editScandinavianModal').classList.remove('active');
+}
+
+document.getElementById('editScandinavianModal')?.addEventListener('click', function(e) {
+    if (e.target === this) closeEditScandinavianModal();
+});
 
 function confirmDeleteLot(id, title) {
     if (confirm(`Удалить лот "${title}"?`)) {

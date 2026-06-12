@@ -433,8 +433,8 @@ include 'header.php';
     <div class="add-lot-container">
         <div class="form-card">
             <div class="form-header">
-                <h1>➕ Создание нового лота</h1>
-                <p>Заполните информацию о лоте для участия в торгах</p>
+                <h1>➕ <?= $lang === 'en' ? 'Create a new lot' : 'Создание нового лота' ?></h1>
+                <p><?= $lang === 'en' ? 'Fill in lot information to publish it for bidding' : 'Заполните информацию о лоте для участия в торгах' ?></p>
             </div>
             
             <div class="form-body">
@@ -449,29 +449,29 @@ include 'header.php';
                     <div class="form-section">
                         <div class="section-title">
                             <i data-lucide="info"></i>
-                            Основная информация
+                            <?= $lang === 'en' ? 'General information' : 'Основная информация' ?>
                         </div>
                         
                         <div class="form-group">
-                            <label>Название лота <span class="required">*</span></label>
-                            <input type="text" name="title" placeholder="Например: Автомобиль Tesla Model S 2023" required>
+                            <label><?= $lang === 'en' ? 'Lot title' : 'Название лота' ?> <span class="required">*</span></label>
+                            <input type="text" name="title" placeholder="<?= $lang === 'en' ? 'For example: Tesla Model S 2023' : 'Например: Автомобиль Tesla Model S 2023' ?>" required>
                         </div>
                         
                         <div class="grid-2">
                             <div class="form-group">
-                                <label>Начальная цена (₽) <span class="required">*</span></label>
+                                <label><?= $lang === 'en' ? 'Starting price (₽)' : 'Начальная цена (₽)' ?> <span class="required">*</span></label>
                                 <input type="number" name="start_price" id="start_price" step="1" min="1" required>
                             </div>
                             <div class="form-group">
-                                <label>Задаток (₽)</label>
+                                <label><?= $lang === 'en' ? 'Deposit (₽)' : 'Задаток (₽)' ?></label>
                                 <input type="number" name="deposit" step="1" min="0" value="0">
-                                <div class="hint">Обычно 5-10% от начальной цены</div>
+                                <div class="hint"><?= $lang === 'en' ? 'Typically 5–10% of the starting price' : 'Обычно 5-10% от начальной цены' ?></div>
                             </div>
                         </div>
                         
                         <div class="form-group">
-                            <label>Описание лота</label>
-                            <textarea name="description" rows="4" placeholder="Подробное описание товара, характеристики, состояние..."></textarea>
+                            <label><?= $lang === 'en' ? 'Lot description' : 'Описание лота' ?></label>
+                            <textarea name="description" rows="4" placeholder="<?= $lang === 'en' ? 'Detailed description of the item, specifications, condition...' : 'Подробное описание товара, характеристики, состояние...' ?>"></textarea>
                         </div>
                     </div>
                     
@@ -479,39 +479,39 @@ include 'header.php';
                     <div class="form-section">
                         <div class="section-title">
                             <i data-lucide="gavel"></i>
-                            Тип торгов
+                            <?= $lang === 'en' ? 'Auction type' : 'Тип торгов' ?>
                         </div>
                         
                         <div class="type-selector" id="typeSelector">
                             <div class="type-option" data-type="classic">
                                 <div class="icon">🔨</div>
-                                <div class="name">Открытый аукцион</div>
-                                <div class="desc">Цена растёт, побеждает максимальная ставка</div>
+                                <div class="name"><?= $lang === 'en' ? 'Open auction' : 'Открытый аукцион' ?></div>
+                                <div class="desc"><?= $lang === 'en' ? 'Price rises; the highest bid wins' : 'Цена растёт, побеждает максимальная ставка' ?></div>
                             </div>
                             <div class="type-option" data-type="scandinavian">
                                 <div class="icon">🔥</div>
-                                <div class="name">Скандинавский</div>
-                                <div class="desc">Платные ставки, победитель — последний</div>
+                                <div class="name"><?= $lang === 'en' ? 'Scandinavian' : 'Скандинавский' ?></div>
+                                <div class="desc"><?= $lang === 'en' ? 'Paid bids; the last bidder wins' : 'Платные ставки, победитель — последний' ?></div>
                             </div>
                             <div class="type-option" data-type="closed">
                                 <div class="icon">🔒</div>
-                                <div class="name">Закрытый аукцион</div>
-                                <div class="desc">Real-time, видна только лучшая ставка, ручной допуск</div>
+                                <div class="name"><?= $lang === 'en' ? 'Closed auction' : 'Закрытый аукцион' ?></div>
+                                <div class="desc"><?= $lang === 'en' ? 'Real-time, only the best bid is visible, manual admission' : 'Real-time, видна только лучшая ставка, ручной допуск' ?></div>
                             </div>
                             <div class="type-option" data-type="descending">
                                 <div class="icon">📉</div>
-                                <div class="name">Аукцион на понижение</div>
-                                <div class="desc">Цена снижается до первой ставки</div>
+                                <div class="name"><?= $lang === 'en' ? 'Reverse (Dutch) auction' : 'Аукцион на понижение' ?></div>
+                                <div class="desc"><?= $lang === 'en' ? 'Price drops until the first bid' : 'Цена снижается до первой ставки' ?></div>
                             </div>
                             <div class="type-option" data-type="quotation">
                                 <div class="icon">📋</div>
-                                <div class="name">Запрос котировок</div>
-                                <div class="desc">Закупка: побеждает наименьшая цена</div>
+                                <div class="name"><?= $lang === 'en' ? 'Request for quotations' : 'Запрос котировок' ?></div>
+                                <div class="desc"><?= $lang === 'en' ? 'Procurement: the lowest price wins' : 'Закупка: побеждает наименьшая цена' ?></div>
                             </div>
                             <div class="type-option" data-type="proposal">
                                 <div class="icon">📨</div>
-                                <div class="name">Запрос предложений</div>
-                                <div class="desc">Продажа: побеждает наибольшая цена</div>
+                                <div class="name"><?= $lang === 'en' ? 'Request for proposals' : 'Запрос предложений' ?></div>
+                                <div class="desc"><?= $lang === 'en' ? 'Sale: the highest price wins' : 'Продажа: побеждает наибольшая цена' ?></div>
                             </div>
                         </div>
                         <input type="hidden" name="auction_type" id="auction_type" value="classic">
@@ -521,31 +521,31 @@ include 'header.php';
                     <div class="form-section">
                         <div class="section-title">
                             <i data-lucide="clock"></i>
-                            Временные параметры
+                            <?= $lang === 'en' ? 'Timing parameters' : 'Временные параметры' ?>
                         </div>
                         
                         <div class="grid-2">
                             <div class="form-group">
-                                <label>Начало торгов</label>
+                                <label><?= $lang === 'en' ? 'Auction start' : 'Начало торгов' ?></label>
                                 <input type="datetime-local" name="start_at">
-                                <div class="hint">Оставьте пустым для немедленного старта</div>
+                                <div class="hint"><?= $lang === 'en' ? 'Leave empty for immediate start' : 'Оставьте пустым для немедленного старта' ?></div>
                             </div>
                             <div class="form-group">
-                                <label>Длительность (часов)</label>
+                                <label><?= $lang === 'en' ? 'Duration (hours)' : 'Длительность (часов)' ?></label>
                                 <input type="number" name="duration" value="24" min="1" max="720">
                             </div>
                         </div>
                         
                         <div class="grid-2">
                             <div class="form-group">
-                                <label>Минут перед началом</label>
+                                <label><?= $lang === 'en' ? 'Minutes before start' : 'Минут перед началом' ?></label>
                                 <input type="number" name="time_before_start" value="0" min="0" max="60">
-                                <div class="hint">Отображается как "Начинается через N минут"</div>
+                                <div class="hint"><?= $lang === 'en' ? 'Shown as “Starts in N minutes”' : 'Отображается как "Начинается через N минут"' ?></div>
                             </div>
                             <div class="form-group" id="maxDurationGroup">
-                                <label>Макс. продолжительность (часов)</label>
-                                <input type="number" name="max_duration" placeholder="Не ограничено" min="1" max="720">
-                                <div class="hint">Жёсткое закрытие после истечения</div>
+                                <label><?= $lang === 'en' ? 'Max duration (hours)' : 'Макс. продолжительность (часов)' ?></label>
+                                <input type="number" name="max_duration" placeholder="<?= $lang === 'en' ? 'Unlimited' : 'Не ограничено' ?>" min="1" max="720">
+                                <div class="hint"><?= $lang === 'en' ? 'Hard close after expiration' : 'Жёсткое закрытие после истечения' ?></div>
                             </div>
                         </div>
                     </div>
@@ -553,7 +553,7 @@ include 'header.php';
                     <!-- Динамические параметры для разных типов -->
                     <div id="dynamicParams"></div>
                     
-                    <button type="submit" class="btn-submit">Опубликовать лот</button>
+                    <button type="submit" class="btn-submit"><?= $lang === 'en' ? 'Publish lot' : 'Опубликовать лот' ?></button>
                 </form>
             </div>
         </div>
@@ -574,23 +574,23 @@ const templates = {
         <div class="dynamic-params">
             <div class="section-title" style="margin-bottom: 16px;">
                 <i data-lucide="settings"></i>
-                Параметры открытого аукциона
+                <?= $lang === 'en' ? 'Open auction parameters' : 'Параметры открытого аукциона' ?>
             </div>
             <div class="grid-2">
                 <div class="form-group">
-                    <label>Шаг аукциона (₽)</label>
+                    <label><?= $lang === 'en' ? 'Bid step (₽)' : 'Шаг аукциона (₽)' ?></label>
                     <input type="number" name="bid_step" value="1000" min="100" step="100">
-                    <div class="hint">Минимальное повышение ставки</div>
+                    <div class="hint"><?= $lang === 'en' ? 'Minimum bid increment' : 'Минимальное повышение ставки' ?></div>
                 </div>
                 <div class="form-group">
-                    <label>Таймер ставки (сек)</label>
+                    <label><?= $lang === 'en' ? 'Bid timer (sec)' : 'Таймер ставки (сек)' ?></label>
                     <input type="number" name="timer_start" value="240" min="60" step="30">
-                    <div class="hint">Время на принятие решения</div>
+                    <div class="hint"><?= $lang === 'en' ? 'Time to make a decision' : 'Время на принятие решения' ?></div>
                 </div>
                 <div class="form-group">
-                    <label>Продление при ставке (сек)</label>
+                    <label><?= $lang === 'en' ? 'Extension on bid (sec)' : 'Продление при ставке (сек)' ?></label>
                     <input type="number" name="timer_add" value="240" min="60" step="30">
-                    <div class="hint">+ время после каждой ставки</div>
+                    <div class="hint"><?= $lang === 'en' ? '+ time after each bid' : '+ время после каждой ставки' ?></div>
                 </div>
             </div>
         </div>
@@ -599,16 +599,16 @@ const templates = {
         <div class="dynamic-params">
             <div class="section-title" style="margin-bottom: 16px;">
                 <i data-lucide="flame"></i>
-                Параметры скандинавского аукциона
+                <?= $lang === 'en' ? 'Scandinavian auction parameters' : 'Параметры скандинавского аукциона' ?>
             </div>
             <div class="grid-2">
                 <div class="form-group">
                     <label>Шаг аукциона (₽)</label>
                     <input type="number" name="bid_step" value="1000" min="100" step="100">
-                    <div class="hint">Увеличение цены при каждой ставке</div>
+                    <div class="hint"><?= $lang === 'en' ? 'Price increase per bid' : 'Увеличение цены при каждой ставке' ?></div>
                 </div>
                 <div class="form-group">
-                    <label>Начальный таймер (сек)</label>
+                    <label><?= $lang === 'en' ? 'Initial timer (sec)' : 'Начальный таймер (сек)' ?></label>
                     <input type="number" name="timer_start" value="240" min="60" step="30">
                 </div>
                 <div class="form-group">
@@ -617,7 +617,7 @@ const templates = {
                 </div>
             </div>
             <div class="alert alert-success" style="background:#eff6ff; color:#1e40af;">
-                💡 Стоимость ставки: шаг + 2490 ₽ для уважаемых, +1890 ₽ для ответственных
+                💡 <?= $lang === 'en' ? 'Bid cost: step + 2490 ₽ for Respected, +1890 ₽ for Responsible' : 'Стоимость ставки: шаг + 2490 ₽ для уважаемых, +1890 ₽ для ответственных' ?>
             </div>
         </div>
     `,
@@ -625,24 +625,24 @@ const templates = {
         <div class="dynamic-params">
             <div class="section-title" style="margin-bottom: 16px;">
                 <i data-lucide="lock"></i>
-                Параметры закрытого аукциона
+                <?= $lang === 'en' ? 'Closed auction parameters' : 'Параметры закрытого аукциона' ?>
             </div>
             <div class="grid-2">
                 <div class="form-group">
-                    <label>Продолжительность торгов (мин)</label>
+                    <label><?= $lang === 'en' ? 'Auction duration (min)' : 'Продолжительность торгов (мин)' ?></label>
                     <input type="number" name="closed_duration_min" value="30" min="1" step="1">
-                    <div class="hint">Таймер фиксированный, не продлевается при ставках</div>
+                    <div class="hint"><?= $lang === 'en' ? 'Fixed timer; not extended by bids' : 'Таймер фиксированный, не продлевается при ставках' ?></div>
                 </div>
                 <div class="form-group">
-                    <label>Минимальный шаг (₽)</label>
+                    <label><?= $lang === 'en' ? 'Minimum step (₽)' : 'Минимальный шаг (₽)' ?></label>
                     <input type="number" name="bid_step" value="1000" min="100" step="100">
                     <div class="hint">Минимальное повышение ставки</div>
                 </div>
             </div>
             <div class="hint" style="margin-top: 8px;line-height:1.5;">
-                🔒 Real-time торги: ставки подаются как в открытом аукционе.<br>
-                В процессе видна только лучшая цена; данные участников скрыты.<br>
-                Допуск к торгам — вручную организатором/админом через админку.
+                🔒 <?= $lang === 'en' ? 'Real-time auction: bids are placed as in an open auction.' : 'Real-time торги: ставки подаются как в открытом аукционе.' ?><br>
+                <?= $lang === 'en' ? 'During the auction only the best price is shown; participant data is hidden.' : 'В процессе видна только лучшая цена; данные участников скрыты.' ?><br>
+                <?= $lang === 'en' ? 'Admission is granted manually by the organizer/admin via the admin panel.' : 'Допуск к торгам — вручную организатором/админом через админку.' ?>
             </div>
         </div>
     `,
@@ -650,21 +650,21 @@ const templates = {
         <div class="dynamic-params">
             <div class="section-title" style="margin-bottom: 16px;">
                 <i data-lucide="trending-down"></i>
-                Параметры аукциона на понижение
+                <?= $lang === 'en' ? 'Reverse auction parameters' : 'Параметры аукциона на понижение' ?>
             </div>
             <div class="grid-2">
                 <div class="form-group">
-                    <label>Шаг снижения (₽)</label>
+                    <label><?= $lang === 'en' ? 'Step-down (₽)' : 'Шаг снижения (₽)' ?></label>
                     <input type="number" name="descending_step" value="1000" min="100" step="100">
                 </div>
                 <div class="form-group">
-                    <label>Интервал снижения (сек)</label>
+                    <label><?= $lang === 'en' ? 'Step-down interval (sec)' : 'Интервал снижения (сек)' ?></label>
                     <input type="number" name="descending_interval" value="60" min="10" step="10">
                 </div>
                 <div class="form-group">
-                    <label>Цена отсечения (₽)</label>
+                    <label><?= $lang === 'en' ? 'Reserve price (₽)' : 'Цена отсечения (₽)' ?></label>
                     <input type="number" name="reserve_price" value="0" min="0">
-                    <div class="hint">Минимальная цена, ниже которой торги не идут</div>
+                    <div class="hint"><?= $lang === 'en' ? 'Minimum price below which the auction does not proceed' : 'Минимальная цена, ниже которой торги не идут' ?></div>
                 </div>
             </div>
         </div>
@@ -673,22 +673,22 @@ const templates = {
         <div class="dynamic-params">
             <div class="section-title" style="margin-bottom: 16px;">
                 <i data-lucide="file-text"></i>
-                Параметры запроса котировок
+                <?= $lang === 'en' ? 'Request-for-quotations parameters' : 'Параметры запроса котировок' ?>
             </div>
             <div class="grid-2">
                 <div class="form-group">
-                    <label>Дедлайн подачи предложений</label>
+                    <label><?= $lang === 'en' ? 'Submission deadline' : 'Дедлайн подачи предложений' ?></label>
                     <input type="datetime-local" name="quotation_deadline">
-                    <div class="hint">Участники могут менять своё предложение до дедлайна</div>
+                    <div class="hint"><?= $lang === 'en' ? 'Bidders may revise their offer until the deadline' : 'Участники могут менять своё предложение до дедлайна' ?></div>
                 </div>
                 <div class="form-group">
-                    <label>Максимальная цена (₽)</label>
+                    <label><?= $lang === 'en' ? 'Maximum price (₽)' : 'Максимальная цена (₽)' ?></label>
                     <input type="number" name="max_quotation_price" value="0" min="0">
-                    <div class="hint">Ограничение по максимальной цене</div>
+                    <div class="hint"><?= $lang === 'en' ? 'Cap on the maximum price' : 'Ограничение по максимальной цене' ?></div>
                 </div>
             </div>
             <div class="hint" style="margin-top: 8px;">
-                📋 Закупка: победитель — участник с наименьшей ценой.
+                📋 <?= $lang === 'en' ? 'Procurement: the bidder with the lowest price wins.' : 'Закупка: победитель — участник с наименьшей ценой.' ?>
             </div>
         </div>
     `,
@@ -696,7 +696,7 @@ const templates = {
         <div class="dynamic-params">
             <div class="section-title" style="margin-bottom: 16px;">
                 <i data-lucide="mail"></i>
-                Параметры запроса предложений
+                <?= $lang === 'en' ? 'Request-for-proposals parameters' : 'Параметры запроса предложений' ?>
             </div>
             <div class="grid-2">
                 <div class="form-group">
@@ -706,7 +706,7 @@ const templates = {
                 </div>
             </div>
             <div class="hint" style="margin-top: 8px;">
-                📨 Продажа: победитель — участник с наибольшей ценой за товар.
+                📨 <?= $lang === 'en' ? 'Sale: the bidder with the highest price wins.' : 'Продажа: победитель — участник с наибольшей ценой за товар.' ?>
             </div>
         </div>
     `

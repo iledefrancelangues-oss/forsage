@@ -101,13 +101,18 @@ try {
         }
     }
 
-    // Сохранить прикрепленные документы (если есть)
+    // Сохранить прикрепленные документы (whitelist: jpg/jpeg/png/pdf, max 5Мб)
     $uploadDir = __DIR__ . '/uploads/docs/';
     if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
+    $allowed_ext = ['jpg','jpeg','png','pdf'];
 
     foreach (['file1','file2','file3'] as $index => $input) {
         if (!empty($_FILES[$input]['tmp_name']) && $_FILES[$input]['error'] === UPLOAD_ERR_OK) {
-            $target = $uploadDir . $user_id . '_' . ($index + 1) . '_' . basename($_FILES[$input]['name']);
+            if ($_FILES[$input]['size'] > 5 * 1024 * 1024) continue;
+            $ext = strtolower(pathinfo($_FILES[$input]['name'], PATHINFO_EXTENSION));
+            if (!in_array($ext, $allowed_ext, true)) continue;
+            $safe_name = $user_id . '_' . ($index + 1) . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+            $target = $uploadDir . $safe_name;
             move_uploaded_file($_FILES[$input]['tmp_name'], $target);
         }
     }
@@ -147,7 +152,7 @@ try {
     if ($requested_type === 'responsible') {
         try {
             $base_price  = 8000;
-            $express_fee = 0;
+            $express_fee = ($express === 1) ? 7000 : 0;
             $total       = $base_price + $express_fee;
 
             $stmt = $pdo->prepare("
@@ -172,7 +177,7 @@ try {
             /* Готовим данные для встраивания QR прямо в модалку регистрации,
                чтобы пользователь не уходил со страницы (как в profile.php).
                ST00012 — российский стандарт QR для СБП-переводов. */
-            $purpose    = "Повышение статуса Ответственный ID{$user_id} {$username}";
+            $purpose    = "Повышение статуса Ответственный ID{$user_id} {$username}" . ($express_fee > 0 ? " (экспресс)" : "");
             $sumKopecks = (int)round($total * 100);
             $qrPayload  = "ST00012"
                 . "|Name=ООО Форсаж"
